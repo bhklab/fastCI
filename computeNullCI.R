@@ -132,6 +132,7 @@ mult.p <-function(p1, p2, outOrder){
 
 divide.p <- function(p1, p2){
   outlen <- length(p1) - length(p2) + 1
+  p1 <- pad(p1, length(p1)+1)
   p2 <- pad(p2, length(p1))
   
   p1.fft <- fft(p1)
