@@ -13,16 +13,14 @@ library(polynom)
 #' through choose(n,2) discordant pairs.  It is necessarily symmetric, and assumes that every
 #' permutation is equally likely.  The function currently does not handle ties or mCI, and both
 #' makeplot and outdir don't actually do anything (fix this). 
-makeNullCIDist <- function(n, makeplot=0, outdir="", cumulative=1){
+makeNullCIDist <- function(n, multvect, makeplot=0, outdir="", cumulative=1){
   # Initialize to zeros; by symmetry, it's sufficient to count up to
   # choose(n,2)/2, but this is for thoroughness.  My dist is the probability
   # distribution on the number of inversions [0, choose(n,2)] on n elements.  
   
   # Example:
   #   mynull100 <- makeNullCIDist(n=100)
-  
   mydist <- rep(0, 2+choose(n,2))
-
   mydist[1] <- 1
   if (n > 1){
     for (ii in 2:n){
@@ -30,11 +28,18 @@ makeNullCIDist <- function(n, makeplot=0, outdir="", cumulative=1){
       mydist[1:(choose(ii,2)+2)] <- cumsum(c(t, rep(0,ii))) - cumsum(c(rep(0,ii), t))
     }
   }
+  
+  # Given the multiplicities in v
+  multvect <- multvect[multvect > 1]
+  multcount <- sum(unlist(lapply(multvect, function(x) choose(x,2))))
+  for (ii in multvect){
+    mydist <- divide.p(mydist, getSimplePolyProduct(ii,ii))
+  }
 
   if (cumulative == 1){
     cumsum(mydist[1:(choose(n,2)+1)])
   } else {
-    mydist[1:(choose(n,2)+1)]
+    mydist[1:(choose(n,2) + 1 - multcount)]
   }
 }
 
@@ -76,21 +81,62 @@ getMultiplicityPoly <- function(elements, multiplicity){
 }
 
 # This function uses the convolutional trick to multiply k polynomials of the
-# form (1+x+x^2+...x^m) from m=n-k+1 to n
+# form 1/m(1+x+x^2+...x^m) from m=n-k+1 to n. It is normalized so its coefficients sum
+# to 1, i.e. it is a probability density function.  This is faster for computation. 
 getSimplePolyProduct <- function(elts, range){
   if (range > elts){
-    return("Error: Range (or number of polynomials) is greater than the input
-           number of elements")}
-  
+    return("Error: Range (or number of polynomials) is greater than the input number of elements")}
+  if (range < 1 | range != round(range)){
+    return("Error: Range must be a positive integer")}
+
   #initialize - initial length is sum of (elts-1):(elts-range) + 1
-  retpoly <- c(rep(1, elts), rep(0, range/2 * (2*elts - range - 1) + 1 - elts))
-  count <- elts
+  #This initialization is a bit gross, but it's faster to start at the bottom of the range
+  retpoly <- c(rep(1, (elts-range+1)), rep(0, range/2 * (2*elts-range-1) + 1 - (elts-range+1))) #* 1/(elts-range+1)
+  count <- (elts - range + 1)
   if (range > 1){
-    for (k in (elts-1):(elts-range+1)){
-      retpoly[1:(count+k)] = cumsum(c(retpoly[1:count], rep(0,k))) - 
-                               cumsum(c(rep(0,k), retpoly[1:count]))
+    for (k in (elts-range+2):elts){
+      retpoly[1:(count+k)] = (cumsum(c(retpoly[1:count], rep(0,k))) - cumsum(c(rep(0,k), retpoly[1:count])))# * 1/k
       count <- count + k-1
     }
   }
   return(retpoly[1:count])
+}
+
+
+pad <- function(x, len, location = c("end", "start", "sym")){
+  location = match.arg(location)
+  if(length(x) > len){
+    stop("Cannot do negative padding.")
+  }
+  if (location == "end"){
+    return(c(x, numeric(len - length(x))))
+  }
+  if (location == "start"){
+    return(c(numeric(len - length(x)), x))
+  }
+}
+
+mult.p <-function(p1, p2, outOrder){
+  if(missing(outOrder)){
+    outOrder <- length(p1) + length(p2) - 1
+  } 
+  p1 <- pad(p1, outOrder)
+  p2 <- pad(p2, outOrder)
+  
+  p1.fft <- fft(p1)
+  p2.fft <- fft(p2)
+  p3.fft <- p1.fft*p2.fft
+  
+  return(fft(1/length(p3.fft) * p3.fft, inverse = TRUE))
+}
+
+divide.p <- function(p1, p2){
+  outlen <- length(p1) - length(p2) + 1
+  p2 <- pad(p2, length(p1))
+  
+  p1.fft <- fft(p1)
+  p2.fft <- fft(p2)
+  p3.fft <- p1.fft / p2.fft
+  
+  return(fft(1/length(p3.fft) * p3.fft, inverse = TRUE)[1:outlen])
 }
