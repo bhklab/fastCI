@@ -1,5 +1,6 @@
-source("~/Code/fastCI.R")
+source("~/Code/fastCI/fastCI.R")
 library(mCI)
+library(Hmisc)
 
 resOuterList <- list()
 
@@ -15,6 +16,14 @@ for (j in 1:5){
     timeInnerListmCI[i] <- system.time(paired.concordance.index(xList[[i]], yList[[i]], delta.pred = 0, delta.obs = 0))[[3]]
   }
   
+  
+  timeInnerListHmisc <- numeric(5)
+  
+  for(i in 1:3) {
+    timeInnerListHmisc[i] <- system.time(rcorr.cens(xList[[i]], yList[[i]]))[[3]]
+  }
+  
+  
   xList <- list(runif(100), runif(1000), runif(10000), runif(100000), runif(1000000))
   yList <- xList
   yList <- lapply(yList, function(x) return(rev(x + x*runif(length(x), -0.1, 0.1))))
@@ -24,7 +33,9 @@ for (j in 1:5){
   for(i in 1:5) {
     timeInnerListfastCI[i] <- system.time(fastCI(xList[[i]], yList[[i]]))[[3]]
   }
-  resOuterList[[j]] <- list(mCI = timeInnerListmCI, fastCI = timeInnerListfastCI) 
+  
+  
+  resOuterList[[j]] <- list(mCI = timeInnerListmCI, fastCI = timeInnerListfastCI, Hmisc = timeInnerListHmisc) 
 } 
 
 mCI.times <- lapply(resOuterList, function(x) return(data.frame("algo" = "mCI", "npoints" = c(100,1000,10000),"time" = x$mCI[1:3])))
@@ -36,8 +47,12 @@ fastCI.times <- lapply(resOuterList, function(x) return(data.frame("algo" = "fas
 
 fastCI.times <- do.call(rbind, fastCI.times)
 
+Hmisc.times <- lapply(resOuterList, function(x) return(data.frame("algo" = "Hmisc", "npoints" = c(100,1000,10000 ),"time" = x$Hmisc[1:3])))
 
-toPlot <- rbind(mCI.times, fastCI.times) 
+Hmisc.times <- do.call(rbind, Hmisc.times)
+
+
+toPlot <- rbind(mCI.times, fastCI.times, Hmisc.times) 
 
 require(ggplot2)
 
@@ -51,6 +66,9 @@ toPlot2$time <- log10(toPlot2$time)
 summary(lm(time~npoints, subset(toPlot2, toPlot2$algo == "mCI")))
 
 summary(lm(time~npoints, subset(toPlot2, toPlot2$algo == "fastCI")))
+
+
+summary(lm(time~npoints, subset(toPlot2, toPlot2$algo == "Hmisc")))
 
 
 

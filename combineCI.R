@@ -20,3 +20,8 @@ combineCI <- function(CI1, CI2, N1, N2, multvect1, multvect2){
   
   return(c(res.CI, res.p))
 }
+
+
+### useful for N tissue studies!
+
+
