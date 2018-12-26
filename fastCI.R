@@ -3,7 +3,7 @@ require(matrixStats)
 
 
 merge_two_sides <- function(left, right, outx){
-  
+  # browser()
   left_vals <- left[[1]]
   left_discordant <- left[[2]]
   left_pairs <- left[[3]]
@@ -62,15 +62,18 @@ merge_two_sides <- function(left, right, outx){
     } else {
       # only case left is if the two values are equal.
       if(outx){
-        out_vals[i] <- left_vals[Li]
-        out_discordant[i] <- left_discordant[Li] + RLR 
-        out_pairs[i] <- left_pairs[Li] - 1
-        i <- i + 1
+        current_val <- left_vals[Li]
+        while(LLL && left_vals[Li] == current_val){
+          out_vals[i] <- left_vals[Li]
+          out_discordant[i] <- left_discordant[Li] + RLR 
+          out_pairs[i] <- left_pairs[Li] - 1
+          i <- i + 1
+          LLL <- LLL - 1
+          Li <- Li + 1
+        }
         out_vals[i] <- right_vals[Ri]
-        out_discordant[i] <- right_discordant[Ri] + LLL - 1
+        out_discordant[i] <- right_discordant[Ri] + LLL 
         out_pairs[i] <- right_pairs[Ri] - 1
-        LLL <- LLL - 1
-        Li <- Li + 1
         RLR <- RLR + 1
         Ri <- Ri + 1
         i <- i + 1
@@ -117,11 +120,13 @@ merge_sort <- function(input, outx){
     return(output)
   }
 }
-## TODO: this code does not handle missing values well. 
+## Currently, the following code gives prediction intervals for new CIs of the same sample size. 
 
-fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alternative = c("two.sided", "greater", "less")){
+fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alternative = c("two.sided", "greater", "less"), interval = c("confidence", "prediction")){
 
   alternative = match.arg(alternative)
+  interval = match.arg(interval)
+  
   if(!length(observations) == length(predictions)){
     stop("Size of vectors must be the same")
   }
@@ -135,7 +140,6 @@ fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alterna
   myorder <- order(observations)
   
   predictions <- predictions[myorder]
-
   input <- list(predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)))
   output <- merge_sort(input, outx)
   output_discordant <- output[[2]]
@@ -169,9 +173,16 @@ fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alterna
   # varp <- 4 * ((exp(logSumExp(c(2*D + CC, 2*C + DD))) - 2 *exp(C + D + CD)) / exp(logSumExp(c(C, D)))^4) * N * (N - 1) / (N - 2)
   
   if (varp >= 0) {
-    sterr <- sqrt(varp / N)
-    ci <- qnorm(p = alpha / 2, lower.tail = FALSE) * sterr
-    p <- pnorm((cindex - 0.5) / sterr)
+    sterr <- sqrt(varp / (N-1))
+    if(interval == "confidence"){
+      ci <- qnorm(p = alpha / 2, lower.tail = FALSE) * sterr
+      p <- pnorm((cindex - 0.5) / sterr)
+    } else{
+      ci <- qnorm(p = alpha / 2, lower.tail = FALSE) * sterr
+      p <- pnorm((cindex - 0.5) / sterr)
+      ci <- qnorm(p = alpha/2, lower.tail = FALSE) * sterr * sqrt(2)
+    }
+
   } else {
     return(list("cindex"=cindex,
                 "p.value"=1,
