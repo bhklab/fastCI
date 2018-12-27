@@ -4,7 +4,7 @@
 library(polynom)
 library(purrr)
 
-#' Function makeNullCIDist: Computes the distribution of CI under the assumption that all permutations are equally likely.
+#' Function nullCIDist: Computes the distribution of CI under the assumption that all permutations are equally likely.
 #' Parameters: 
 #'     n:        positive integer, length of the sequence, i.e. the number of elements
 #'     makeplot  boolean, whether to output a plot of the cdf (default=0)
@@ -102,7 +102,10 @@ getSmartMultiplicity <- function(elements, multiplicity, norm=1) {
       }
     }
   }
-  
+
+  if (sum(unlist(lapply(numlist, function(x) length(x) - 1))) != (elements - multiplicity) * multiplicity){
+    
+  }
   return(numlist) #(reduce(numlist,mult.p))
 }
 
@@ -183,7 +186,7 @@ mult.plist <- function(plist, outOrder){
     outOrder <- sum(unlist(lapply(plist, length))) - length(plist) + 1
   }
   if (length(plist) == 1){
-    return(plist)
+    return(plist[[1]])
   }
   
   product <- fft(pad(plist[[1]], outOrder))
