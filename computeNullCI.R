@@ -44,7 +44,7 @@ makeNullCIDist <- function(n, multvect, makeplot=0, outdir="", cumulative=1){
   if (cumulative == 1){
     mydist <- cumsum(mydist)
   }
-  #return(polylist)
+  #return(polylist)  #for debugging
   return(as.numeric(mydist))
 }
 
@@ -91,17 +91,18 @@ getSmartMultiplicity <- function(elements, multiplicity, norm=1) {
   numlist <- getSimplePolyList(elements, multiplicity, norm=norm)
   for (ii in multiplicity:2){
     x <- rep(1/ii, ii)
-    # This is very slow because of the polynum modulo operation
+    # This is very slow because of the polynum modulo operation and is very ghetto
     # The operation doesn't check that there exists an element jj for which x is a factor.  
     # Fix this.  Moving the new element to the end 
     for (jj in 1:length(numlist)){
-      if (as.polynomial(numlist[[jj]]) %% x == 0){
+      if (sum(abs(as.numeric(as.polynomial(numlist[[jj]]) %% x))) < 10^-14){
         numlist <- c(numlist, list(as.numeric(divide.p(numlist[[jj]], x))))
         numlist[jj] <- c()
         break
       }
     }
   }
+  
   return(numlist) #(reduce(numlist,mult.p))
 }
 
@@ -123,9 +124,10 @@ getSimplePolyProduct <- function(elts, range, norm=0){
     for (k in (elts-range+2):elts){
       retpoly[1:(count+k)] = (cumsum(c(retpoly[1:count], rep(0,k))) - cumsum(c(rep(0,k), retpoly[1:count])))# * 1/k
       count <- count + k-1
+      # Normalize stepwise, floor out guys at 10^-200?
     }
   }
-  if (norm == 1){
+  if (norm != 0){
     retpoly <- retpoly / sum(retpoly)
   }
   return(retpoly[1:count])
@@ -140,7 +142,7 @@ getSimplePolyList <- function(elts, range, norm=0){
   a <- list()
 
   for (ii in (elts - range + 1):elts){
-    k <- ifelse(norm == 1, 1/ii, 1)
+    k <- ifelse(norm != 0, 1/ii, 1)
     a <- c(a, list(rep(k,ii)))
   }
   return(a)
