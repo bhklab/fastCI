@@ -53,6 +53,7 @@ merge_two_sides <- function(left, right, outx){
       ## This should be split into two cases, one that counts tied predictions, and one that counts tied observations. 
       current_observation <- left_observations[Li]
       current_prediction <- left_predictions[Li]
+      ## TODO: This out_pair counting below is incorrect. Maybe we should just count up for each valid comparison made?
       while(LLL && (left_observations[Li] == current_observation || left_predictions[Li] == current_prediction)){
         out_observations[i] <- left_observations[Li]
         out_predictions[i] <- left_predictions[Li]
