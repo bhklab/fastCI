@@ -1,0 +1,95 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[margin=1in]{geometry}
+\usepackage{authblk}
+
+
+\title{Number of inversions in multiset permutations}
+\author{Janosch Ortmann, Zhaleh Safikhani, Petr Smirnov, Ian Smith}
+
+\date{December 2018}
+
+\DeclareMathOperator{\inv}{inv}
+\DeclarePairedDelimiterX\set[1]\lbrace\rbrace{\def\given{\;\delimsize\vert\;}#1}
+\DeclarePairedDelimiter\abs{\lvert}{\rvert}
+
+\newcommand{\zz}{\mathbb{Z}}
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+% More context: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4314453/
+% 
+
+The concordance index is a non-parametric metric for comparison between two orderings on a set.  In practice, this metric can be used to determine whether a candidate biomarker is informative of a clinical outcome, like sensitivity to anti-cancer drugs.  
+
+The best way to think about permuting elements with ties between them is as follows: Let the set of distinct elements to be permuted be denoted $E=\{e_1,...,e_n\}$ and let $a_j\in \zz_{>0}$ denote the multiplicity of element $e_j$, that is how often it appears. Thus there are $\alpha:=\sum_{j=1}^n \alpha_j$ elements in total. We denote by $M=\{e_{1}^{\alpha_{1}},...,e_{n}^{\alpha_n}\}$ the multiset containing all elements (with ties).
+
+\section{Exact expressions}
+
+\subsection{Explicit formula}
+
+In \cite{Margolius} we have the following result for \emph{sets}, that is $\alpha_j=1$ for all $j$ (and hence $\alpha=n$): let $I_n(k)$ denote the number of inversions of $S$ with $k$ inversions then
+
+\begin{align}
+\label{eq:noties}
+    \Phi_n(x) := \sum_{j=1}^{\binom n2} I_n(x) x^k = \prod_{j=1}^n \sum_{k=1}^{j-1} x^k.
+\end{align}
+It turns out that an analogous result can be obtained for multisets. The original reference is to a paper from 1915 -- see [Mac15] in \cite{Wilson} -- but it's easier to read in modern notation. Let $\inv(\sigma)$ denote the number of inversions of a permutation of the multiset (set with ties) $S$. In \cite{Wilson} the \emph{distribution} of $\inv$ is shown to be
+\begin{align}
+\label{eq:mnc}
+    D_M(x) &= \sum_{\sigma\in S_M} x^{\inv(\sigma)} = \begin{bmatrix} \alpha\\ \alpha_1 ... \alpha_n \end{bmatrix}_x = \frac{\alpha!_x}{\alpha_1!_x .. \alpha_n!_x}
+    \intertext{with the \emph{$q$-factorial} being defined by}
+    \label{eq:DefQFac}
+    m!_x & = \prod_{k=1}^r \left(1+x+...+x^{k-1}\right)
+\end{align}
+(The expression on the right-hand side of \eqref{eq:mnc} is also called the \emph{$q$-multinomial coefficient}. Observe that, by splitting the sum over $S_M$ according to the number of inversions,
+\begin{align}
+    D_M(x) = \sum_{k\geq 0} \sum_{\substack{\sigma\in S_M\\ \inv(\sigma)=k}} x^{\inv\sigma} = \sum_{k\geq 0} \sum_{\substack{\sigma\in S_M\\ \inv(\sigma)=k}} x^k = \sum_{k\geq 0} I_M(k) x^k
+\end{align}
+where $I_M(k)$ denotes the number of permutations of the multiset $M$ with $k$ inversions. Thus, \eqref{eq:mnc} is the exact multiset analogue of \eqref{eq:noties}.
+
+
+\subsection{Recursive formula}
+
+The paper \cite{Margolius} also has a recursion formula, expressing $I_n(k)$ in terms of the $I_{n-1}(j)$: in terms of the generating function this reads
+\begin{align}
+\label{eq:IterativeNoties}
+    \Phi_n(x) &= \left(\sum_{k=0}^{n-1} x^k\right) \Phi_{n-1}(x).  
+\end{align}
+The proof proceeds by looking at permutations of the first $n-1$ elements and then inserting the last element at all possible position. By keeping track of how many extra inversions this insertion introduces, we arrive at \eqref{eq:IterativeNoties}.
+
+This argument extends rather well to the case with ties: let $M$ be the multiset as described in the introduction and denote by $M^-$ the set obtained from $M$ by removing one occurrence of $e_n$. That is, if $M=e_1^{\alpha_1},..,e_n^{\alpha_n}$, then
+\begin{align}
+    M^- = e_1^{\alpha_1}, e_2^{\alpha_2},\ldots,e_{n-1}^{\alpha_{n-1}}, e_n^{\alpha_n-1},
+\end{align}
+and in particular if $\abs{M}=n$ then $\abs{M^-}=n-1$. We can give the following analogue of \eqref{eq:IterativeNoties}:
+\begin{align}
+    D_M(x) & = \begin{bmatrix}\alpha\\ \alpha_n\end{bmatrix}_x D_{M-}(x) = \frac{\alpha!_x}{(\alpha-\alpha_n)!_x \alpha_n!_x} D_{M-}(x),
+\end{align}
+with $m!_x$ defined in \eqref{eq:DefQFac}.
+
+
+
+\section{Gaussian approximation}
+
+In \cite{Margolius}, asymptotics are also discussed. It seems like there is also a Gaussian approximation result for the inversions in the multiset case, see \cite{CongerViswanath}. 
+
+
+
+
+\bibliographystyle{plain}
+\begin{thebibliography}{99}
+\bibitem{CongerViswanath}
+Conger M and Viswanath D (2006), Permutations of Multisets. arXiv:math/0508242
+ \bibitem{Margolius}
+  Margolius BH (2001), Permutations with Inversions. \emph{Journal of Integer Sequences} \textbf{4}, Article 01.2.4 
+  \bibitem{Wilson}
+  Wilson AT (2015), An extension of Macmahon's equidistribution theorem to ordered multiset partitions. arXiv: 1508.06261.
+\end{thebibliography}
+
+\end{document}
