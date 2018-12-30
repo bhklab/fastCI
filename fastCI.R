@@ -4,31 +4,35 @@ require(matrixStats)
 
 merge_two_sides <- function(left, right, outx){
   # browser()
-  left_vals <- left[[1]]
-  left_discordant <- left[[2]]
-  left_pairs <- left[[3]]
+  left_observations <- left[[1]]
+  left_predictions <- left[[2]]
+  left_discordant <- left[[3]]
+  left_pairs <- left[[4]]
   
-  right_vals <- right[[1]]
-  right_discordant <- right[[2]]
-  right_pairs <- right[[3]]
+  right_observations <- right[[1]]
+  right_predictions <- right[[2]]
+  right_discordant <- right[[3]]
+  right_pairs <- right[[4]]
   
   RLR <- 0
-  LLL <- length(left_vals)
+  LLL <- length(left_observations)
   
-  LR <- length(right_vals)
+  LR <- length(right_observations)
   
-  out_vals <- numeric(LLL + LR)
-  out_discordant <- numeric(length(out_vals))
-  out_pairs <- numeric(length(out_vals))
+  out_observations <- numeric(LLL + LR)
+  out_predictions <- numeric(LLL + LR)
+  out_discordant <- numeric(length(out_observations))
+  out_pairs <- numeric(length(out_observations))
   
   Li <- 1
   Ri <- 1
   i <- 1
-  while(i <= length(out_vals)){
+  while(i <= length(out_observations)){
     
     if(LLL == 0){
       #Break out of loop if left list is empty
-      out_vals[i] <- right_vals[Ri]
+      out_observations[i] <- right_observations[Ri]
+      out_predictions[i] <- right_predictions[Ri]
       out_discordant[i] <- right_discordant[Ri] + LLL
       out_pairs[i] <- right_pairs[Ri]
       Ri <- Ri + 1
@@ -37,65 +41,72 @@ merge_two_sides <- function(left, right, outx){
     }
     if(RLR == LR){
       #Break out of loop if right list is empty
-      out_vals[i] <- left_vals[Li]
+      out_observations[i] <- left_observations[Li]
+      out_predictions[i] <- left_predictions[Li]
       out_discordant[i] <- left_discordant[Li] + RLR
       out_pairs[i] <- left_pairs[Li]
       Li <- Li + 1
       i <- i + 1
       next
     }
-    
-    if(left_vals[Li] < right_vals[Ri]) {
-      out_vals[i] <- left_vals[Li]
+    if(left_predictions[Li] == right_predictions[Ri] || (left_observations[Li] == right_observations[Ri] && outx)){
+      ## This should be split into two cases, one that counts tied predictions, and one that counts tied observations. 
+      current_observation <- left_observations[Li]
+      current_prediction <- left_predictions[Li]
+      ## TODO: This out_pair counting below is incorrect. Maybe we should just count up for each valid comparison made?
+      while(LLL && (left_observations[Li] == current_observation || left_predictions[Li] == current_prediction)){
+        out_observations[i] <- left_observations[Li]
+        out_predictions[i] <- left_predictions[Li]
+        out_discordant[i] <- left_discordant[Li] + RLR 
+        out_pairs[i] <- left_pairs[Li] - 1
+        i <- i + 1
+        LLL <- LLL - 1
+        Li <- Li + 1
+      }
+      out_observations[i] <- right_observations[Ri]
+      out_predictions[i] <- right_predictions[Ri]
+      out_discordant[i] <- right_discordant[Ri] + LLL 
+      out_pairs[i] <- right_pairs[Ri] - 1
+      RLR <- RLR + 1
+      Ri <- Ri + 1
+      i <- i + 1
+    } else if(left_observations[Li] < right_observations[Ri]) {
+      out_observations[i] <- left_observations[Li]
+      out_predictions[i] <- left_predictions[Li]
       out_discordant[i] <- left_discordant[Li] + RLR
       out_pairs[i] <- left_pairs[Li]
       LLL <- LLL - 1
       Li <- Li + 1
       i <- i + 1
-    } else if(left_vals[Li] > right_vals[Ri]) {
-      out_vals[i] <- right_vals[Ri]
+    } else if(left_observations[Li] > right_observations[Ri]) {
+      out_observations[i] <- right_observations[Ri]
+      out_predictions[i] <- right_predictions[Ri]
       out_discordant[i] <- right_discordant[Ri] + LLL
       out_pairs[i] <- right_pairs[Ri]
       RLR <- RLR + 1
       Ri <- Ri + 1
       i <- i + 1
     } else {
-      # only case left is if the two values are equal.
-      if(outx){
-        current_val <- left_vals[Li]
-        while(LLL && left_vals[Li] == current_val){
-          out_vals[i] <- left_vals[Li]
-          out_discordant[i] <- left_discordant[Li] + RLR 
-          out_pairs[i] <- left_pairs[Li] - 1
-          i <- i + 1
-          LLL <- LLL - 1
-          Li <- Li + 1
-        }
-        out_vals[i] <- right_vals[Ri]
-        out_discordant[i] <- right_discordant[Ri] + LLL 
-        out_pairs[i] <- right_pairs[Ri] - 1
-        RLR <- RLR + 1
-        Ri <- Ri + 1
-        i <- i + 1
-      } else {
-        # stop("Not implemented correctly?")
-        out_vals[i] <- left_vals[Li]
-        out_discordant[i] <- left_discordant[Li] + RLR + 0.5
-        out_pairs[i] <- left_pairs[Li]
-        i <- i + 1
-        out_vals[i] <- right_vals[Ri]
-        out_discordant[i] <- right_discordant[Ri] + LLL - 0.5
-        out_pairs[i] <- right_pairs[Ri]
-        LLL <- LLL - 1
-        Li <- Li + 1
-        RLR <- RLR + 1
-        Ri <- Ri + 1
-        i <- i + 1
-      }
+      # only case left is if the two values are equal and outx is false
+      # stop("Not implemented correctly?")
+      out_observations[i] <- left_observations[Li]
+      out_predictions[i] <- left_predictions[Li]
+      out_discordant[i] <- left_discordant[Li] + RLR + 0.5
+      out_pairs[i] <- left_pairs[Li]
+      i <- i + 1
+      out_observations[i] <- right_observations[Ri]
+      out_predictions[i] <- right_predictions[Ri]
+      out_discordant[i] <- right_discordant[Ri] + LLL - 0.5
+      out_pairs[i] <- right_pairs[Ri]
+      LLL <- LLL - 1
+      Li <- Li + 1
+      RLR <- RLR + 1
+      Ri <- Ri + 1
+      i <- i + 1
     }
   }
   
-  return(list(out_vals, out_discordant, out_pairs))
+  return(list(out_observations, out_predictions, out_discordant, out_pairs))
    
 }
 
@@ -104,16 +115,19 @@ merge_sort <- function(input, outx){
   if(length(input[[1]]) == 1){
     return(input)
   } else {
-    input_vals <- input[[1]]
-    input_discordant <- input[[2]]
-    input_pairs <- input[[3]]
-    split_idx <- floor(length(input_vals)/2)
-    left <- list(input_vals[seq(1, split_idx)], 
+    input_observations <- input[[1]]
+    input_predictions <- input[[2]]
+    input_discordant <- input[[3]]
+    input_pairs <- input[[4]]
+    split_idx <- floor(length(input_observations)/2)
+    left <- list(input_observations[seq(1, split_idx)],
+                 input_predictions[seq(1, split_idx)], 
                  input_discordant[seq(1, split_idx)],
                  input_pairs[seq(1, split_idx)])
-    right <- list(input_vals[seq(split_idx+1, length(input_vals))], 
-                  input_discordant[seq(split_idx+1, length(input_vals))],
-                  input_pairs[seq(split_idx+1, length(input_vals))])
+    right <- list(input_observations[seq(split_idx+1, length(input_observations))],
+                  input_predictions[seq(split_idx+1, length(input_predictions))], 
+                  input_discordant[seq(split_idx+1, length(input_observations))],
+                  input_pairs[seq(split_idx+1, length(input_observations))])
     left <- merge_sort(left, outx)
     right <- merge_sort(right, outx)
     output <- merge_two_sides(left, right, outx)
@@ -137,13 +151,15 @@ fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alterna
   predictions <- predictions[myCompleteCases]
 
   
-  myorder <- order(observations)
+  myorder <- order(predictions, method = "radix")
   
   predictions <- predictions[myorder]
-  input <- list(predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)))
+  observations <- observations[myorder]
+
+  input <- list(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)))
   output <- merge_sort(input, outx)
-  output_discordant <- output[[2]]
-  output_pairs <- output[[3]]
+  output_discordant <- output[[3]]
+  output_pairs <- output[[4]]
   comppairs=10
   # N <- length(predictions)
   # D <- exp(logSumExp(log(output_discordant)))
@@ -160,12 +176,12 @@ fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alterna
   DD <- sum(output_discordant*(output_discordant-1))
   CD <- sum(Cvec*output_discordant)
   # browser()
-  if (N < 3 || (C == 0 && D == 0)) {
-    return(list("cindex"=NA, "p.value"=NA, "sterr"=NA, "lower"=NA, "upper"=NA, "relevant.pairs.no"=0))
-  }
-  if(C==0 || D==0 || C * (C - 1)==0 || D * (D - 1)==0 || C * D==0 || (C + D) < comppairs){
-    return(list("cindex"=NA, "p.value"=NA, "sterr"=NA, "lower"=NA, "upper"=NA, "relevant.pairs.no"=(C + D) / 2))
-  }
+  # if (N < 3 || (C == 0 && D == 0)) {
+  #   return(list("cindex"=NA, "p.value"=NA, "sterr"=NA, "lower"=NA, "upper"=NA, "relevant.pairs.no"=0))
+  # }
+  # if(C==0 || D==0 || C * (C - 1)==0 || D * (D - 1)==0 || C * D==0 || (C + D) < comppairs){
+  #   return(list("cindex"=NA, "p.value"=NA, "sterr"=NA, "lower"=NA, "upper"=NA, "relevant.pairs.no"=(C + D) / 2))
+  # }
   # cindex <- exp(C) / exp(logSumExp(c(C, D)))
   cindex <- C/(C+D)
   varp <- 4 * ((D ^ 2 * CC - 2 * C * D * CD + C ^ 2 * DD) / (C + D) ^ 4) * N * (N - 1) / (N - 2) 
