@@ -5,6 +5,7 @@
 \usepackage{mathtools}
 \usepackage[margin=1in]{geometry}
 \usepackage{authblk}
+\usepackage[round]{natbib}
 
 
 \title{Number of inversions in multiset permutations}
@@ -22,10 +23,19 @@
 \maketitle
 
 \section{Introduction}
-% More context: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4314453/
+More context: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4314453/ \citep{Kang2015}
 % 
 
-The concordance index is a non-parametric metric for comparison between two orderings on a set.  In practice, this metric can be used to determine whether a candidate biomarker is informative of a clinical outcome, like sensitivity to anti-cancer drugs.  
+The concordance index is a non-parametric metric for comparison between two orderings on a set.  In practice, this metric can be used to determine whether a candidate biomarker is informative of a clinical outcome, like sensitivity to anti-cancer drugs.  The metric is applied two a numeric response vector and a numeric predictor vector; both take real numbers and can be tied.  For example, the response vector might be the area-above-dose response curve (AAC) of cancer cell lines to a particular anti-cancer drug (e.g. lapatinib), and the candidate biomarker might be the gene expression of EGFR in TPM from RNA-Seq data.  The bioinformatic question is then to compute the predictive value of the candidate biomarker for the response vector, assign significance and quantify effect size, and test for generalizability in other data sets.  Concordance index is a metric for testing significance, though it also has an effect size interpretation.  Concordance index is also analgoous to the area under the ROC curve if the predictor vector or candidate biomarker is considered as a classifier or regressor for the response vector.   Concordance index - in its vanilla form - is also essentially equivalent to (a linear transformation of) Kendall's Tau.  
+
+As discussed in \cite{Obuchowski2006}, the area under the ROC curve is an obvious metric for identifying predictors for binary response variables.  However, many response variables are continuous - for instance IC50 or AAC for drug response data, or survival time for clinical trials.  Continuous-valued data can be binarized by imposing a threshold, but this choice is often arbitrary.  Obuchowski points out through simulation that binarization creates problems and incorrectly estimates the association between the two variables.  
+
+Insert more context here.
+
+As in reference https://papers.nips.cc/paper/3375-on-ranking-in-survival-analysis-bounds-on-the-concordance-index.pdf, formally, we define concordance index as:
+\begin{align}
+CI(x,y) &\equiv \frac{1}{E}\sum_{ij}1(x_{i} < x_{j}, y_{i} < y_{j})
+\end{align}
 
 The best way to think about permuting elements with ties between them is as follows: Let the set of distinct elements to be permuted be denoted $E=\{e_1,...,e_n\}$ and let $a_j\in \zz_{>0}$ denote the multiplicity of element $e_j$, that is how often it appears. Thus there are $\alpha:=\sum_{j=1}^n \alpha_j$ elements in total. We denote by $M=\{e_{1}^{\alpha_{1}},...,e_{n}^{\alpha_n}\}$ the multiset containing all elements (with ties).
 
@@ -33,13 +43,13 @@ The best way to think about permuting elements with ties between them is as foll
 
 \subsection{Explicit formula}
 
-In \cite{Margolius} we have the following result for \emph{sets}, that is $\alpha_j=1$ for all $j$ (and hence $\alpha=n$): let $I_n(k)$ denote the number of inversions of $S$ with $k$ inversions then
+In \cite{Margolius2001} we have the following result for \emph{sets}, that is $\alpha_j=1$ for all $j$ (and hence $\alpha=n$): let $I_n(k)$ denote the number of inversions of $S$ with $k$ inversions then
 
 \begin{align}
 \label{eq:noties}
     \Phi_n(x) := \sum_{j=1}^{\binom n2} I_n(x) x^k = \prod_{j=1}^n \sum_{k=1}^{j-1} x^k.
 \end{align}
-It turns out that an analogous result can be obtained for multisets. The original reference is to a paper from 1915 -- see [Mac15] in \cite{Wilson} -- but it's easier to read in modern notation. Let $\inv(\sigma)$ denote the number of inversions of a permutation of the multiset (set with ties) $S$. In \cite{Wilson} the \emph{distribution} of $\inv$ is shown to be
+It turns out that an analogous result can be obtained for multisets. The original reference is to a paper from 1915 -- see [Mac15] in \cite{Remmel2015} -- but it's easier to read in modern notation. Let $\inv(\sigma)$ denote the number of inversions of a permutation of the multiset (set with ties) $S$. In \cite{Remmel2015} the \emph{distribution} of $\inv$ is shown to be
 \begin{align}
 \label{eq:mnc}
     D_M(x) &= \sum_{\sigma\in S_M} x^{\inv(\sigma)} = \begin{bmatrix} \alpha\\ \alpha_1 ... \alpha_n \end{bmatrix}_x = \frac{\alpha!_x}{\alpha_1!_x .. \alpha_n!_x}
@@ -56,7 +66,7 @@ where $I_M(k)$ denotes the number of permutations of the multiset $M$ with $k$ i
 
 \subsection{Recursive formula}
 
-The paper \cite{Margolius} also has a recursion formula, expressing $I_n(k)$ in terms of the $I_{n-1}(j)$: in terms of the generating function this reads
+The paper \cite{Margolius2001} also has a recursion formula, expressing $I_n(k)$ in terms of the $I_{n-1}(j)$: in terms of the generating function this reads
 \begin{align}
 \label{eq:IterativeNoties}
     \Phi_n(x) &= \left(\sum_{k=0}^{n-1} x^k\right) \Phi_{n-1}(x).  
@@ -77,19 +87,11 @@ with $m!_x$ defined in \eqref{eq:DefQFac}.
 
 \section{Gaussian approximation}
 
-In \cite{Margolius}, asymptotics are also discussed. It seems like there is also a Gaussian approximation result for the inversions in the multiset case, see \cite{CongerViswanath}. 
+In \cite{Margolius2001}, asymptotics are also discussed. It seems like there is also a Gaussian approximation result for the inversions in the multiset case, see \cite{Conger2007}. 
 
 
 
-
-\bibliographystyle{plain}
-\begin{thebibliography}{99}
-\bibitem{CongerViswanath}
-Conger M and Viswanath D (2006), Permutations of Multisets. arXiv:math/0508242
- \bibitem{Margolius}
-  Margolius BH (2001), Permutations with Inversions. \emph{Journal of Integer Sequences} \textbf{4}, Article 01.2.4 
-  \bibitem{Wilson}
-  Wilson AT (2015), An extension of Macmahon's equidistribution theorem to ordered multiset partitions. arXiv: 1508.06261.
-\end{thebibliography}
+\bibliography{refs}
+\bibliographystyle{plainnat}
 
 \end{document}
