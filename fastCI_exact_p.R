@@ -2,7 +2,7 @@
 require(matrixStats)
 
 source("~/Code/fastCI/computeNullCI.R")
-makeNullCIDist <- memoise::memoise(makeNullCIDist)
+nullCIDist <- memoise::memoise(nullCIDist)
 
 merge_two_sides <- function(left, right, outx){
   
@@ -154,7 +154,7 @@ fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alterna
   }
   cindex <- C/(C+D)
   
-  nullDist <- makeNullCIDist(N)
+  nullDist <- nullCIDist(N)
   
  # browser() 
   p <- getCIPvals(nullDist, N, D/2, alternative = alternative)
