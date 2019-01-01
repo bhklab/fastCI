@@ -14,7 +14,7 @@ library(purrr)
 #' through choose(n,2) discordant pairs.  It is necessarily symmetric, and assumes that every
 #' permutation is equally likely.  The function currently does not handle ties or mCI, and both
 #' makeplot and outdir don't actually do anything (fix this). 
-nullCIDist <- function(n, multvect, makeplot=0, outdir="", cumulative=1){
+nullCIDist <- function(n, multvect=c(1), makeplot=0, outdir="", cumulative=1, return_polylist=0, force_sym=0){
   # Initialize to zeros; by symmetry, it's sufficient to count up to
   # choose(n,2)/2, but this is for thoroughness.  My dist is the probability
   # distribution on the number of inversions [0, choose(n,2)] on n elements.  
@@ -41,11 +41,19 @@ nullCIDist <- function(n, multvect, makeplot=0, outdir="", cumulative=1){
   
   #mydist <- as.numeric(reduce(polylist, mult.p))
   mydist <- as.numeric(mult.plist(polylist))
+  # There is a symmetry problem with mydist
+  if (force_sym == 1){
+    mydist[length(mydist):(length(mydist)/2 + 1)] = mydist[1:length(mydist)/2]
+  }
+  
   if (cumulative == 1){
     mydist <- cumsum(mydist)
   }
-  #return(polylist)  #for debugging
-  return(as.numeric(mydist))
+  
+  if (return_polylist == 1){
+    return(polylist) }  #for debugging
+  else{
+    return(as.numeric(mydist)) }
 }
 
 

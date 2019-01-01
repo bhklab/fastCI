@@ -38,7 +38,7 @@ CI(x,y) &\equiv \frac{1}{E}\sum_{ij}1(x_{i} < x_{j}, y_{i} < y_{j})
 \end{align}
 CI is defined as the probability that a pair of elements $i$ and $j$ will have the same ordering in x and y.  The normalization divides by the total number of pairs, i.e. $C(N,2)$.  CI takes values from $[0,1]$, is 0.5 for uncorrelated inputs, 0 for perfectly anticorrelated (e.g. $y = -x$), and 1 for perfectly correlated inputs.  CI is non-parametric; it only depends on the relative ordering of x and y, not on their absolute values.  CI on the ranks of x and y returns the same value as on x and y. 
 
-Conceptually, it is sufficient to calculate CI by comparing all $C(N,2) = \frac{N(N-1)}{2}$ pairs of elements of x and y.  This is of course $O(N^{2})$ and unnecessarily expensive.  The term from discrete mathematics for a pair of elements in the wrong order is an \textit{inversion}, and there is considerable literature on analysis of inversions.  
+Conceptually, it is sufficient to calculate CI by comparing all $C(N,2) = \frac{N(N-1)}{2}$ pairs of elements of x and y.  This is $O(N^{2})$ and unnecessarily expensive.  An \textit{inversion} in discrete mathematics is a pair of elements in a permutation that are in the wrong order, and there is considerable literature on analysis of inversions.  
 
 In addition to the value of the CI itself, it is necessary to compute the variance or standard error of the calculation both to (1) assign significance or a p-value and (2) determine if the CI of one predictor is statistically greater than that of another - or greater than 0.5 and informative at all.  This turns out to be a particularly challenging problem and one that the majority of our efforts have been devoted to solving.  The gold standard method for verifying our null model is permutation testing, but this isn't a practical solution.  To illustrate this, we attempted to compute CI on 100 drugs in 500 cell lines using the gene expression of each of 20,000 genes as candidate biomarkers and assign p-values to each of the 100 x 20,000 tests.  Using one million permutations per problem requires $2x10^{12}$ computations of $O(n \log n)$ for $n=500$ and is intractable.  
 
@@ -56,13 +56,40 @@ We independently rederived a method for computing CI in $O(N \log(N))$ time base
 
 \subsection{Variance}
 
+\section{Practical Notes}
+
+\subsection{Generating Polynomial}
+As shown below in the Formal Analysis section, the simplest way to generate the probability distribution on the number of inversions from a set or multiset is to use a generating polynomial or an ordinary generating function.  The distribution on the permutations which result in a particular inversion number is represented as coefficients in a polynomial on x; the number (or probability, if normalized) of permutations yielding k inversions is the coefficient of $x^{k}$.  This allows exact recursive and iterative methods for adding elements by multiplying polynomials.  This is equivalent to convolutions on discrete probability distributions.
+
+For case 1 - CI with no ties, the null hypothesis that every permutation is equally likely yields a special case in which the distribution is a product of polynomials with coefficients 1, i.e. of the form:
+\begin{equation}
+z_{n} \equiv \sum_{k=0}^{n-1} x^{k} = 1 + x + x^{2} + ... + x^{n-1}
+\end{equation}
+
+We attempted three solutions for multiplying polynomials:
+\begin{enumerate}
+\item \texttt{polynom} package - an R library for representing and operating on polynomials.  This package turns out to be slow and somewhat inexact, and was not used.  Polynomial multiplication by \texttt{polynom}
+\item Differences on CDFs: for the special case of the $z_{n}$ polynomials with all 1s, the multiplication of a general polynomial $g(x)$ by $z_{n}$ is equivalent to the difference of two offset CDFs on the coefficients of $g(x)$.  This approach is considerably faster than more general multiplication, but restricted to $z_{n}$.
+\item Fourier transformation - polynomial multiplication, or convolution, can be accomplished in $O(n)$ time; once transformed, polynomial multiplication is elementwise instead of convolutional.  It introduces some precision problems and very slightly complex coefficients.  The naive application of FFT for polynomial multiplication would be to take the two factors, transform them, multiply, and inverse transform them.  We implemented a method by which the sequence of polynomials to multiply is generated, transformed and multiplied simultaneously, and inverse transformed once to further optimize the process. 
+\end{enumerate}
+
+Computing the distribution on inversions for case 2 - CI with ties requires dividing polynomials.  It turns out that in all cases enumerated below - with the $D_{n}$ ratios of $\prod_{k=n}^{n+m}z_{k}$ to $\prod_{k=1}^{m+1} z_{k}$, for each polynomial in the denominator, there always exists a polynomial in the numerator which is a polynomial multiple of the denominator such that the coefficients are integral and the remainder is 0.  Doing any polynomial division - in FFT space or using $\texttt{polynom}$ - was prohibitively inaccurate, so we implemented a method to simplify the $D_{n}$s to just the product of the quotients, eliminating the division entirely. 
+
+Open problems:
+\begin{enumerate}
+\item Numerical precision in the tails of the polynomial expansion for n! > .Machine\$double.xmax ($10^{308}$ gives n = 172).  Our implementation maintains the coefficients as a probability distribution, such that they sum to 1, but the coefficients at the tails get small rapidly.  For CI without ties, there is exactly 1 way to have 0 (or choose(n,2)) inversions and n! total permutations, so the coefficient is $1/n!$.  One solution is to put a lower bound on the coefficients, but this will require breaking up the FFT multiplication for sufficiently large values of n. 
+\item Asymmetry in the distribution - for values of n greater than 15, the coefficients of the distribution - which should be symmetric - develop asymmetries that become larger with n.  It is likely that this reflects numerical precision near 1, as the trick for multiplying $z_{n}$s uses CDFs.  One solution is to compute the left side of the distribution and mirror it.  These differences are very small - no greater than $10^{-17}$, but inelegant.  They may also introduce errors which compound. 
+\item Intransitive ties (case 2b) turns out to be exceptionally challenging to compute the null distribution for.  We have not as yet come up with a closed form to represent complex tie structures.  MCI's tie structure is even more complicated than generalized CI with ties, as it cannot be represented by a multiset on either x or y.
+\item Null distribution for kmCI.  
+\item Generalized variance for the CI distributions for any association, not just the null hypothesis. 
+\item Normal approximation and an examination of the values of n for which the approximation is valid.
+\end{enumerate}
+
 \section{Formal Analysis}
 
 The best way to think about permuting elements with ties between them is as follows: Let the set of distinct elements to be permuted be denoted $E=\{e_1,...,e_n\}$ and let $a_j\in \zz_{>0}$ denote the multiplicity of element $e_j$, that is how often it appears. Thus there are $\alpha:=\sum_{j=1}^n \alpha_j$ elements in total. We denote by $M=\{e_{1}^{\alpha_{1}},...,e_{n}^{\alpha_n}\}$ the multiset containing all elements (with ties).
 
-\section{Exact expressions}
-
-\subsection{Explicit formula}
+\subsection{Exact expressions - explicit formula}
 
 In \cite{Margolius2001} we have the following result for \emph{sets}, that is $\alpha_j=1$ for all $j$ (and hence $\alpha=n$): let $I_n(k)$ denote the number of inversions of $S$ with $k$ inversions then
 
@@ -84,7 +111,6 @@ It turns out that an analogous result can be obtained for multisets. The origina
 \end{align}
 where $I_M(k)$ denotes the number of permutations of the multiset $M$ with $k$ inversions. Thus, \eqref{eq:mnc} is the exact multiset analogue of \eqref{eq:noties}.
 
-
 \subsection{Recursive formula}
 
 The paper \cite{Margolius2001} also has a recursion formula, expressing $I_n(k)$ in terms of the $I_{n-1}(j)$: in terms of the generating function this reads
@@ -105,8 +131,7 @@ and in particular if $\abs{M}=n$ then $\abs{M^-}=n-1$. We can give the following
 with $m!_x$ defined in \eqref{eq:DefQFac}.
 
 
-
-\section{Gaussian approximation}
+\subsection{Gaussian approximation}
 
 In \cite{Margolius2001}, asymptotics are also discussed. It seems like there is also a Gaussian approximation result for the inversions in the multiset case, see \cite{Conger2007}. 
 
