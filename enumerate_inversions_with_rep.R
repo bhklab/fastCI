@@ -25,7 +25,7 @@ for (i in 7:7){
 source("~/Code/fastCI/computeNullCI.R")
 
 
-makeNullCIDist(7, c(1,3,3),cumulative = 0)*factorial(7)
+nullCIDist(7, c(1,3,3),cumulative = 0)*factorial(7)
 
 
 ## Need to figure out what the hell is the distibution for this: x = [1 2 2 3 3 4] and y = [5 5 6 6 7 8]
@@ -77,16 +77,16 @@ for (i in 6:6){
   hist(res) 
   # print(res)
 }
-x1 <- makeNullCIDist(6,c(4,1,1), cumulative = FALSE)
-x2 <- makeNullCIDist(4, c(2,1,1), cumulative = FALSE)
-x3 <- makeNullCIDist(2, c(1,1), cumulative = FALSE)
+x1 <- nullCIDist(6,c(4,1,1), cumulative = FALSE)
+x2 <- nullCIDist(4, c(2,1,1), cumulative = FALSE)
+x3 <- nullCIDist(2, c(1,1), cumulative = FALSE)
 
 length(convolve(x1,convolve(x2,x3, type='o'), type='o')*360)
 
 
 ## Idea : each of x and y must achieve at least x inversions for x inversions to be achieved
-x1 <- makeNullCIDist(4,c(2,1,1), cumulative = F) # x distribution
-x2 <- makeNullCIDist(4, c(2,2), cumulative = F) # y distribution
+x1 <- nullCIDist(4,c(2,1,1), cumulative = F) # x distribution
+x2 <- nullCIDist(4, c(2,2), cumulative = F) # y distribution
 
 # Example: probability of 0 inversions is probability of 0 or more inversions in x and 0 inversions in y
 # Or 0 inversions in x and 0 or more inversions in y. So probability of 0 inversions in x + probability of 0 inversions in y

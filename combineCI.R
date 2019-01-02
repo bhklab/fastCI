@@ -1,6 +1,6 @@
 combineCI <- function(CI1, CI2, N1, N2, multvect1, multvect2){
-  null1 <- makeNullCIDist(N1, multvect1, cumulative = FALSE)
-  null2 <- makeNullCIDist(N2, multvect2, cumulative = FALSE)
+  null1 <- nullCIDist(N1, multvect1, cumulative = FALSE)
+  null2 <- nullCIDist(N2, multvect2, cumulative = FALSE)
   
   if(N1 < N2){
     smaller <- null1

@@ -1,0 +1,143 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[margin=1in]{geometry}
+\usepackage{authblk}
+\usepackage[round]{natbib}
+
+
+\title{Number of inversions in multiset permutations}
+\author{Janosch Ortmann, Zhaleh Safikhani, Petr Smirnov, Ian Smith}
+
+\date{December 2018}
+
+\DeclareMathOperator{\inv}{inv}
+\DeclarePairedDelimiterX\set[1]\lbrace\rbrace{\def\given{\;\delimsize\vert\;}#1}
+\DeclarePairedDelimiter\abs{\lvert}{\rvert}
+
+\newcommand{\zz}{\mathbb{Z}}
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+More context: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4314453/ \citep{Kang2015}
+% 
+
+The concordance index (CI) is a non-parametric metric for comparison between two orderings on a set.  In practice, this metric can be used to determine whether a candidate biomarker is informative of a clinical outcome, like sensitivity to anti-cancer drugs.  The metric is applied two a numeric response vector and a numeric predictor vector; both take real numbers and can be tied.  For example, the response vector might be the area-above-dose response curve (AAC) of cancer cell lines to a particular anti-cancer drug (e.g. lapatinib), and the candidate biomarker might be the gene expression of EGFR in TPM from RNA-Seq data.  The bioinformatic question is then to compute the predictive value of the candidate biomarker for the response vector, assign significance and quantify effect size, and test for generalizability in other data sets.  Concordance index is a metric for testing significance, though it also has an effect size interpretation.  Concordance index is also analgoous to the area under the ROC curve if the predictor vector or candidate biomarker is considered as a classifier or regressor for the response vector.   Concordance index - in its vanilla form - is also essentially equivalent to (a linear transformation of) Kendall's Tau.  
+
+As discussed in \cite{Obuchowski2006}, the area under the ROC curve is an obvious metric for identifying predictors for binary response variables.  However, many response variables are continuous - for instance IC50 or AAC for drug response data, or survival time for clinical trials.  Continuous-valued data can be binarized by imposing a threshold, but this choice is often arbitrary.  Obuchowski points out through simulation that binarization creates problems and incorrectly estimates the association between the two variables - so the goal is to use a metric that operates on continuous valued inputs. 
+
+Insert more context here - in particular, why are we using concordance index instead of Spearman.
+
+Let the two input vectors (e.g. gold-standard response vector and predictor) be x and y, let the length of each vector be N, and denote particular elements by the subscripts $i$ and $j$.  The vectors x and y refer to the same items - for example, cell lines or patients - and can be thought of as two different functions on those items.  The ordering of the items in x and y is arbitrary, but the values of x and y are paired.  As in reference https://papers.nips.cc/paper/3375-on-ranking-in-survival-analysis-bounds-on-the-concordance-index.pdf, formally, we define concordance index as:
+\begin{align}
+CI(x,y) &\equiv \frac{1}{E}\sum_{ij}1(x_{i} < x_{j}, y_{i} < y_{j})
+\end{align}
+CI is defined as the probability that a pair of elements $i$ and $j$ will have the same ordering in x and y.  The normalization divides by the total number of pairs, i.e. $C(N,2)$.  CI takes values from $[0,1]$, is 0.5 for uncorrelated inputs, 0 for perfectly anticorrelated (e.g. $y = -x$), and 1 for perfectly correlated inputs.  CI is non-parametric; it only depends on the relative ordering of x and y, not on their absolute values.  CI on the ranks of x and y returns the same value as on x and y. 
+
+Conceptually, it is sufficient to calculate CI by comparing all $C(N,2) = \frac{N(N-1)}{2}$ pairs of elements of x and y.  This is $O(N^{2})$ and unnecessarily expensive.  An \textit{inversion} in discrete mathematics is a pair of elements in a permutation that are in the wrong order, and there is considerable literature on analysis of inversions.  
+
+In addition to the value of the CI itself, it is necessary to compute the variance or standard error of the calculation both to (1) assign significance or a p-value and (2) determine if the CI of one predictor is statistically greater than that of another - or greater than 0.5 and informative at all.  This turns out to be a particularly challenging problem and one that the majority of our efforts have been devoted to solving.  The gold standard method for verifying our null model is permutation testing, but this isn't a practical solution.  To illustrate this, we attempted to compute CI on 100 drugs in 500 cell lines using the gene expression of each of 20,000 genes as candidate biomarkers and assign p-values to each of the 100 x 20,000 tests.  Using one million permutations per problem requires $2x10^{12}$ computations of $O(n \log n)$ for $n=500$ and is intractable.  
+
+Finally, there are four different variations of concordance index that we sought to implement, devise a null model for, and compute variance:
+\begin{enumerate}
+\item Vanilla Concordance Index (CI) - the two vectors are composed of unique elements, i.e. there does not exist i,j such that $x_{i} = x_{j}$ or $y_{i} = y_{j}$.  By ranking the two vectors, they may be considered permutations of 1:n.
+\item Concordance Index with ties (CI) - the two vectors may internally have elements with the same value.  That is, $\exists i,j | x_{i} = x_{j}$.  This problem breaks down further into two cases: (1) the tie structure can be represented by one multiset - the pairing of elements is transitive, or (2) $\exists i,j,k | i \cong j, j \cong k, i !\cong k$, where $\cong$ denotes a tie in at least one of the vectors. 
+\item Modified Concordance Index (mCI) - mCI differs from CI in that we define two thresholds $t_{x}$ and $t_{y}$ such that if $|x_{i} - x{j}| < t_{x}$ or $|y_{i} - y_{j}| < t_{y}$, the pair is considered a tie and ignored in the CI calculation.  The denominator in the count of inversions is the number of valid pairs, i.e. those with differences in x and y exceeding the thresholds.  As with non-transitive tied CI, mCI's tie structure does not form an equivalence relation and lacks transitivity. 
+\item Kernelized MCI (kmCI) - kernelized MCI assigns a weight to all pairs that is a function of one or both of the differences between the values.  Larger differences in x and y can be considered a pair with greater confidence.  The choice of kernel is monotone increasing with delta, for instance a sigmoid.  mCI can be thought of as a special case of kmCI where the kernel is a heavyside step function.  kmCI assigns a positive weight to all pairs that aren't explicitly tied. 
+\end{enumerate}
+At present, we have computed the null distribution for vanilla CI (no ties) and CI with transitive ties.
+
+\subsection{Computing Concordance Index}
+We independently rederived a method for computing CI in $O(N \log(N))$ time based on merge sort and implemented this in fastCI.  The procedure is to (1) sort x, (2) put the elements of y in the same order as those of x, and (3) merge sort y, counting how many inversions are made with each successive merge operation.  The details are here.  In the literature, counting inversions (the third operation) has been implemented in $O(n \log \log n)$ and $O(n \sqrt{n})$ time \cite{Chan2010}.  As computing CI still requires initially sorting one of the vectors, as the ordering of the items in the two vectors is arbitrary, the run time of CI should still be $O(N \log N)$. 
+
+\subsection{Variance}
+
+\section{Practical Notes}
+
+\subsection{Generating Polynomial}
+As shown below in the Formal Analysis section, the simplest way to generate the probability distribution on the number of inversions from a set or multiset is to use a generating polynomial or an ordinary generating function.  The distribution on the permutations which result in a particular inversion number is represented as coefficients in a polynomial on x; the number (or probability, if normalized) of permutations yielding k inversions is the coefficient of $x^{k}$.  This allows exact recursive and iterative methods for adding elements by multiplying polynomials.  This is equivalent to convolutions on discrete probability distributions.
+
+For case 1 - CI with no ties, the null hypothesis that every permutation is equally likely yields a special case in which the distribution is a product of polynomials with coefficients 1, i.e. of the form:
+\begin{equation}
+z_{n} \equiv \sum_{k=0}^{n-1} x^{k} = 1 + x + x^{2} + ... + x^{n-1}
+\end{equation}
+
+We attempted three solutions for multiplying polynomials:
+\begin{enumerate}
+\item \texttt{polynom} package - an R library for representing and operating on polynomials.  This package turns out to be slow and somewhat inexact, and was not used.  Polynomial multiplication by \texttt{polynom}
+\item Differences on CDFs: for the special case of the $z_{n}$ polynomials with all 1s, the multiplication of a general polynomial $g(x)$ by $z_{n}$ is equivalent to the difference of two offset CDFs on the coefficients of $g(x)$.  This approach is considerably faster than more general multiplication, but restricted to $z_{n}$.
+\item Fourier transformation - polynomial multiplication, or convolution, can be accomplished in $O(n)$ time; once transformed, polynomial multiplication is elementwise instead of convolutional.  It introduces some precision problems and very slightly complex coefficients.  The naive application of FFT for polynomial multiplication would be to take the two factors, transform them, multiply, and inverse transform them.  We implemented a method by which the sequence of polynomials to multiply is generated, transformed and multiplied simultaneously, and inverse transformed once to further optimize the process. 
+\end{enumerate}
+
+Computing the distribution on inversions for case 2 - CI with ties requires dividing polynomials.  It turns out that in all cases enumerated below - with the $D_{n}$ ratios of $\prod_{k=n}^{n+m}z_{k}$ to $\prod_{k=1}^{m+1} z_{k}$, for each polynomial in the denominator, there always exists a polynomial in the numerator which is a polynomial multiple of the denominator such that the coefficients are integral and the remainder is 0.  Doing any polynomial division - in FFT space or using $\texttt{polynom}$ - was prohibitively inaccurate, so we implemented a method to simplify the $D_{n}$s to just the product of the quotients, eliminating the division entirely. 
+
+Open problems:
+\begin{enumerate}
+\item Numerical precision in the tails of the polynomial expansion for n! > .Machine\$double.xmax ($10^{308}$ gives n = 172).  Our implementation maintains the coefficients as a probability distribution, such that they sum to 1, but the coefficients at the tails get small rapidly.  For CI without ties, there is exactly 1 way to have 0 (or choose(n,2)) inversions and n! total permutations, so the coefficient is $1/n!$.  One solution is to put a lower bound on the coefficients, but this will require breaking up the FFT multiplication for sufficiently large values of n. 
+\item Asymmetry in the distribution - for values of n greater than 15, the coefficients of the distribution - which should be symmetric - develop asymmetries that become larger with n.  It is likely that this reflects numerical precision near 1, as the trick for multiplying $z_{n}$s uses CDFs.  One solution is to compute the left side of the distribution and mirror it.  These differences are very small - no greater than $10^{-17}$, but inelegant.  They may also introduce errors which compound. 
+\item Intransitive ties (case 2b) turns out to be exceptionally challenging to compute the null distribution for.  We have not as yet come up with a closed form to represent complex tie structures.  MCI's tie structure is even more complicated than generalized CI with ties, as it cannot be represented by a multiset on either x or y.
+\item Null distribution for kmCI.  
+\item Generalized variance for the CI distributions for any association, not just the null hypothesis. 
+\item Normal approximation and an examination of the values of n for which the approximation is valid.
+\end{enumerate}
+
+\section{Formal Analysis}
+
+The best way to think about permuting elements with ties between them is as follows: Let the set of distinct elements to be permuted be denoted $E=\{e_1,...,e_n\}$ and let $a_j\in \zz_{>0}$ denote the multiplicity of element $e_j$, that is how often it appears. Thus there are $\alpha:=\sum_{j=1}^n \alpha_j$ elements in total. We denote by $M=\{e_{1}^{\alpha_{1}},...,e_{n}^{\alpha_n}\}$ the multiset containing all elements (with ties).
+
+\subsection{Exact expressions - explicit formula}
+
+In \cite{Margolius2001} we have the following result for \emph{sets}, that is $\alpha_j=1$ for all $j$ (and hence $\alpha=n$): let $I_n(k)$ denote the number of inversions of $S$ with $k$ inversions then
+
+\begin{align}
+\label{eq:noties}
+    \Phi_n(x) := \sum_{j=1}^{\binom n2} I_n(x) x^k = \prod_{j=1}^n \sum_{k=1}^{j-1} x^k.
+\end{align}
+It turns out that an analogous result can be obtained for multisets. The original reference is to a paper from 1915 -- see [Mac15] in \cite{Remmel2015} -- but it's easier to read in modern notation. Let $\inv(\sigma)$ denote the number of inversions of a permutation of the multiset (set with ties) $S$. In \cite{Remmel2015} the \emph{distribution} of $\inv$ is shown to be
+\begin{align}
+\label{eq:mnc}
+    D_M(x) &= \sum_{\sigma\in S_M} x^{\inv(\sigma)} = \begin{bmatrix} \alpha\\ \alpha_1 ... \alpha_n \end{bmatrix}_x = \frac{\alpha!_x}{\alpha_1!_x .. \alpha_n!_x}
+    \intertext{with the \emph{$q$-factorial} being defined by}
+    \label{eq:DefQFac}
+    m!_x & = \prod_{k=1}^r \left(1+x+...+x^{k-1}\right)
+\end{align}
+(The expression on the right-hand side of \eqref{eq:mnc} is also called the \emph{$q$-multinomial coefficient}. Observe that, by splitting the sum over $S_M$ according to the number of inversions,
+\begin{align}
+    D_M(x) = \sum_{k\geq 0} \sum_{\substack{\sigma\in S_M\\ \inv(\sigma)=k}} x^{\inv\sigma} = \sum_{k\geq 0} \sum_{\substack{\sigma\in S_M\\ \inv(\sigma)=k}} x^k = \sum_{k\geq 0} I_M(k) x^k
+\end{align}
+where $I_M(k)$ denotes the number of permutations of the multiset $M$ with $k$ inversions. Thus, \eqref{eq:mnc} is the exact multiset analogue of \eqref{eq:noties}.
+
+\subsection{Recursive formula}
+
+The paper \cite{Margolius2001} also has a recursion formula, expressing $I_n(k)$ in terms of the $I_{n-1}(j)$: in terms of the generating function this reads
+\begin{align}
+\label{eq:IterativeNoties}
+    \Phi_n(x) &= \left(\sum_{k=0}^{n-1} x^k\right) \Phi_{n-1}(x).  
+\end{align}
+The proof proceeds by looking at permutations of the first $n-1$ elements and then inserting the last element at all possible position. By keeping track of how many extra inversions this insertion introduces, we arrive at \eqref{eq:IterativeNoties}.
+
+This argument extends rather well to the case with ties: let $M$ be the multiset as described in the introduction and denote by $M^-$ the set obtained from $M$ by removing one occurrence of $e_n$. That is, if $M=e_1^{\alpha_1},..,e_n^{\alpha_n}$, then
+\begin{align}
+    M^- = e_1^{\alpha_1}, e_2^{\alpha_2},\ldots,e_{n-1}^{\alpha_{n-1}}, e_n^{\alpha_n-1},
+\end{align}
+and in particular if $\abs{M}=n$ then $\abs{M^-}=n-1$. We can give the following analogue of \eqref{eq:IterativeNoties}:
+\begin{align}
+    D_M(x) & = \begin{bmatrix}\alpha\\ \alpha_n\end{bmatrix}_x D_{M-}(x) = \frac{\alpha!_x}{(\alpha-\alpha_n)!_x \alpha_n!_x} D_{M-}(x),
+\end{align}
+with $m!_x$ defined in \eqref{eq:DefQFac}.
+
+
+\subsection{Gaussian approximation}
+
+In \cite{Margolius2001}, asymptotics are also discussed. It seems like there is also a Gaussian approximation result for the inversions in the multiset case, see \cite{Conger2007}. 
+
+
+
+\bibliography{refs}
+\bibliographystyle{plainnat}
+
+\end{document}

@@ -14,13 +14,13 @@ library(purrr)
 #' through choose(n,2) discordant pairs.  It is necessarily symmetric, and assumes that every
 #' permutation is equally likely.  The function currently does not handle ties or mCI, and both
 #' makeplot and outdir don't actually do anything (fix this). 
-makeNullCIDist <- function(n, multvect, makeplot=0, outdir="", cumulative=1){
+nullCIDist <- function(n, multvect=c(1), makeplot=0, outdir="", cumulative=1, return_polylist=0, force_sym=0){
   # Initialize to zeros; by symmetry, it's sufficient to count up to
   # choose(n,2)/2, but this is for thoroughness.  My dist is the probability
   # distribution on the number of inversions [0, choose(n,2)] on n elements.  
   
   ## Example:
-  ##   mynull100 <- makeNullCIDist(n=100)
+  ##   mynull100 <- nullCIDist(n=100)
   if (sum(multvect) < n) {
     multvect <- c(multvect, rep(1, n - sum(multvect)))
   }
@@ -41,17 +41,25 @@ makeNullCIDist <- function(n, multvect, makeplot=0, outdir="", cumulative=1){
   
   #mydist <- as.numeric(reduce(polylist, mult.p))
   mydist <- as.numeric(mult.plist(polylist))
+  # There is a symmetry problem with mydist
+  if (force_sym == 1){
+    mydist[length(mydist):(length(mydist)/2 + 1)] = mydist[1:length(mydist)/2]
+  }
+  
   if (cumulative == 1){
     mydist <- cumsum(mydist)
   }
-  #return(polylist)  #for debugging
-  return(as.numeric(mydist))
+  
+  if (return_polylist == 1){
+    return(polylist) }  #for debugging
+  else{
+    return(as.numeric(mydist)) }
 }
 
 
 getCIPvals <- function(nullCIDist, discpairs, alternative=c("two.sided", "greater", "less")){
   if (nullCIDist[length(nullCIDist)] < 0.99) {
-    return("Error: nullCIDist is not a CDF.  Run makeNullCIDist with argument cumulative=1")
+    return("Error: nullCIDist is not a CDF.  Run nullCIDist with argument cumulative=1")
   } else {
     alternative <- match.arg(alternative)
     ix_twosided <- min(discpairs, length(nullCIDist) - discpairs)
@@ -69,7 +77,7 @@ getCIPvals <- function(nullCIDist, discpairs, alternative=c("two.sided", "greate
 
 # library(polynom) does allow operations on polynomials, but it is very slow
 # compared to the CDF-trick for convolutions of c(1,1,1,...,1) implemented
-# for the tie-less case in makeNullCIDist.
+# for the tie-less case in nullCIDist.
 # getMultiplicityPoly computes the D_M(x) = [alpha alpha_{n}}]_{x} polynomial
 # Note that alpha = sum_{i =1:n} alpha_{i} - i.e. it includes this additional
 # multiplicity.  
