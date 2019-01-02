@@ -4,6 +4,7 @@ require(matrixStats)
 
 merge_two_sides <- function(left, right, outx){
   # browser()
+  # Unpacking the elements of the lists for convenience. 
   left_observations <- left[[1]]
   left_predictions <- left[[2]]
   left_discordant <- left[[3]]
@@ -13,34 +14,41 @@ merge_two_sides <- function(left, right, outx){
   right_predictions <- right[[2]]
   right_discordant <- right[[3]]
   right_pairs <- right[[4]]
-  
+
+
+  #RLR = Right List Remaining  
   RLR <- 0
+  #LLL = Left List Left
   LLL <- length(left_observations)
   
+  # Length Right
   LR <- length(right_observations)
   
+  # Create output vectors of right length to iterate through
   out_observations <- numeric(LLL + LR)
   out_predictions <- numeric(LLL + LR)
-  out_discordant <- numeric(length(out_observations))
-  out_pairs <- numeric(length(out_observations))
+  out_discordant <- numeric(LLL + LR)
+  out_pairs <- numeric(LLL + LR)
   
+  #Left Index; Right Index, index (of output vector)
   Li <- 1
   Ri <- 1
   i <- 1
   while(i <= length(out_observations)){
     
     if(LLL == 0){
-      #Break out of loop if left list is empty
+      ## If left list is empty the only things we can do is fill in the
+      ## output with right list elements.
       out_observations[i] <- right_observations[Ri]
       out_predictions[i] <- right_predictions[Ri]
-      out_discordant[i] <- right_discordant[Ri] + LLL
+      out_discordant[i] <- right_discordant[Ri] + LLL #LLL = 0, but for consistency leaving here
       out_pairs[i] <- right_pairs[Ri]
       Ri <- Ri + 1
       i <- i + 1
       next
     }
     if(RLR == LR){
-      #Break out of loop if right list is empty
+      ## If all elements from the right list have been removed, we fill in from left list
       out_observations[i] <- left_observations[Li]
       out_predictions[i] <- left_predictions[Li]
       out_discordant[i] <- left_discordant[Li] + RLR
@@ -50,11 +58,9 @@ merge_two_sides <- function(left, right, outx){
       next
     }
     if(left_predictions[Li] == right_predictions[Ri] || (left_observations[Li] == right_observations[Ri] && outx)){
-      ## This should be split into two cases, one that counts tied predictions, and one that counts tied observations. 
-      current_observation <- left_observations[Li]
-      current_prediction <- left_predictions[Li]
-      ## TODO: This out_pair counting below is incorrect. Maybe we should just count up for each valid comparison made?
-      while(LLL && (left_observations[Li] == current_observation || left_predictions[Li] == current_prediction)){
+      # Is this still wrong?
+      ## This loop removes elements from the left list while they remain tied with the leftmost element of the right list 
+      while(LLL && (left_observations[Li] == right_observations[Ri] || left_predictions[Li] == right_predictions[Ri])){
         out_observations[i] <- left_observations[Li]
         out_predictions[i] <- left_predictions[Li]
         out_discordant[i] <- left_discordant[Li] + RLR 
