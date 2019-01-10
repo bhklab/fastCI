@@ -43,7 +43,7 @@ nullCIDist <- function(n, multvect=c(1), makeplot=0, outdir="", cumulative=1, re
   mydist <- as.numeric(mult.plist(polylist))
   # There is a symmetry problem with mydist
   if (force_sym == 1){
-    mydist[length(mydist):(length(mydist)/2 + 1)] = mydist[1:length(mydist)/2]
+    mydist[length(mydist):(length(mydist)/2 + 1)] = mydist[1:(length(mydist)/2)]
   }
   
   if (cumulative == 1){

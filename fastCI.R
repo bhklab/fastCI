@@ -142,7 +142,7 @@ merge_sort <- function(input, outx){
 }
 ## Currently, the following code gives prediction intervals for new CIs of the same sample size. 
 
-fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alternative = c("two.sided", "greater", "less"), interval = c("confidence", "prediction")){
+fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alternative = c("two.sided", "greater", "less"), interval = c("confidence", "prediction"), noise.ties = FALSE, noise.eps = sqrt(.Machine$double.eps)){
 
   alternative = match.arg(alternative)
   interval = match.arg(interval)
@@ -161,6 +161,23 @@ fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alterna
   
   predictions <- predictions[myorder]
   observations <- observations[myorder]
+  
+  if(noise.ties){
+    
+    dup.pred <- duplicated(predictions)
+    dup.obs <- duplicated(observations)
+    
+    ## Being extra-precautious about possible duplicates from rnorm. (VERY UNLIKELY)
+    
+    while(any(dup.obs) || any(dup.pred)){
+      predictions[dup.pred] <- predictions[dup.pred] + rnorm(sum(dup.pred), 0, noise.eps)
+      observations[dup.obs] <- observations[dup.obs] + rnorm(sum(dup.obs), 0, noise.eps)
+      
+      dup.pred <- duplicated(predictions)
+      dup.obs <- duplicated(observations)
+      
+    }
+  }
 
   input <- list(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)))
   output <- merge_sort(input, outx)
