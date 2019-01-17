@@ -62,6 +62,7 @@ ggplot(toPlot, aes(npoints, time, colour=algo)) + geom_point() + scale_y_log10()
 toPlot2 <- toPlot
 toPlot2$npoints <- log10(toPlot2$npoints)
 toPlot2$time <- log10(toPlot2$time)
+toPlot2 <- toPlot2[is.finite(toPlot2$time),]
 
 summary(lm(time~npoints, subset(toPlot2, toPlot2$algo == "mCI")))
 

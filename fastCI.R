@@ -1,5 +1,8 @@
 
 require(matrixStats)
+dyn.load("~/Code/fastCI/fastCI.so")
+library(Rcpp)
+sourceCpp("~/Code/fastCI/fastCI.cpp")
 
 
 merge_two_sides <- function(left, right, outx){
@@ -142,7 +145,7 @@ merge_sort <- function(input, outx){
 }
 ## Currently, the following code gives prediction intervals for new CIs of the same sample size. 
 
-fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alternative = c("two.sided", "greater", "less"), interval = c("confidence", "prediction"), noise.ties = FALSE, noise.eps = sqrt(.Machine$double.eps)){
+fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alternative = c("two.sided", "greater", "less"), interval = c("confidence", "prediction"), noise.ties = FALSE, noise.eps = sqrt(.Machine$double.eps), C = TRUE, CPP = TRUE){
 
   alternative = match.arg(alternative)
   interval = match.arg(interval)
@@ -178,9 +181,43 @@ fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alterna
       
     }
   }
+  if(C){
+    discordant <- numeric(length(predictions))
+    pairs <- rep(length(predictions)-1, length(predictions))
+    
+    # output_observations <- observations
+    # output_predictions <- predictions
+    # output_discordant <- discordant
+    # output_pairs <- pairs
+    
+    # cres <- .C("merge_sort_c", as.double(observations),
+    #                    as.double(predictions),
+    #                    as.double(discordant),
+    #                    as.double(pairs),
+    #                    as.double(output_observations),
+    #                    as.double(output_predictions),
+    #                    as.double(output_discordant),
+    #                    as.double(output_pairs), as.integer(length(observations)), as.integer(outx))
+    # output <- cres[5:8]
+    
+    output <- .Call("merge_sort_c", observations,
+          predictions,
+          discordant,
+          pairs,
+          length(observations), outx)
+    
+  } else {
+    if(CPP){
+      output <- merge_sort_c(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)), outx)
+    } else{
+      input <- list(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)))
+      
+      output <- merge_sort(input, outx)
+      
+    }
+    
+  }
 
-  input <- list(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)))
-  output <- merge_sort(input, outx)
   output_discordant <- output[[3]]
   output_pairs <- output[[4]]
   comppairs=10
