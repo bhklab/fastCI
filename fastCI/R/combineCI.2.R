@@ -1,5 +1,5 @@
 combineCI.2 <-
-function(x){
+function(x, nullTable){
   
   x <- x[,complete.cases(t(x))]
   
@@ -30,7 +30,9 @@ function(x){
     CI.out <- conc.out/total.out
     
   } else {
-    nullTable <- makeTableUpToN(max(x[2,]))
+    if(is.missing(nullTable)){
+      nullTable <- makeTableUpToN(max(x[2,]))
+    }
     vec1 <- x[,1]
     x <- x[,-1, drop=FALSE]
     nullOut <- nullTable[[vec1[2]]]
