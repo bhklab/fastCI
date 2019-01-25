@@ -1,44 +1,5 @@
-combineCI <- function(CI1, CI2, N1, N2, multvect1, multvect2){
-  null1 <- nullCIDist(N1, multvect1, cumulative = FALSE)
-  null2 <- nullCIDist(N2, multvect2, cumulative = FALSE)
-  
-  if(N1 < N2){
-    smaller <- null1
-    bigger <- null2
-  } else {
-    smaller <- null2
-    bigger <- null1
-  }
-  # smaller <- pad(smaller, length(bigger))
-  res.null <- convolve(bigger, smaller, type = "o")
-  
-  res.CI <- (choose(N1,2)*CI1 + choose(N2,2)*CI2)/(choose(N1,2) + choose(N2,2))
-  res.pairs <- (choose(N1,2)*CI1 + choose(N2,2)*CI2)
-  
-  res.p <- getCIPvals(cumsum(res.null), res.pairs)
-  
-  return(c(res.CI, res.p))
-}
-
-
-# combineHelperExact <- function(x1, x2){
-#   return(combineCI(x1[1], x2[1], x1[2], x2[2], 1, 1))
-# }
-
-# combineHelperContinous 
-
-computeExpectedApproximation <- function(N){
-  
-  mean <- choose(N, 2)/2 
-  
-  var <- sqrt((2*N^3 + 3*N^2 - 5*N)/72)
-  return(c("mean" = mean, "var"=var))
-}
-
-
-
-
-combineCI.2 <- function(x){
+combineCI.2 <-
+function(x){
   
   x <- x[,complete.cases(t(x))]
   
@@ -89,9 +50,3 @@ combineCI.2 <- function(x){
   return(c("CI" = CI.out[[1]], "p" = p.out[[1]]))
   
 }
-
-
-
-### useful for N tissue studies!
-
-

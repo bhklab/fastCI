@@ -184,37 +184,14 @@ fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alterna
   if(C){
     discordant <- numeric(length(predictions))
     pairs <- rep(length(predictions)-1, length(predictions))
-    
-    # output_observations <- observations
-    # output_predictions <- predictions
-    # output_discordant <- discordant
-    # output_pairs <- pairs
-    
-    # cres <- .C("merge_sort_c", as.double(observations),
-    #                    as.double(predictions),
-    #                    as.double(discordant),
-    #                    as.double(pairs),
-    #                    as.double(output_observations),
-    #                    as.double(output_predictions),
-    #                    as.double(output_discordant),
-    #                    as.double(output_pairs), as.integer(length(observations)), as.integer(outx))
-    # output <- cres[5:8]
-    
     output <- .Call("merge_sort_c", observations,
           predictions,
           discordant,
           pairs,
           length(observations), outx)
-    
   } else {
-    if(CPP){
-      output <- merge_sort_c(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)), outx)
-    } else{
       input <- list(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)))
-      
       output <- merge_sort(input, outx)
-      
-    }
     
   }
 
