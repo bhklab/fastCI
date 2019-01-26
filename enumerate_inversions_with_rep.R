@@ -113,6 +113,24 @@ for (i in 4:4){
 }
 
 
+x <- c(1,2,2,2,3)
+y <- c(3,3,5,6,5)
+
+
+for (i in 5:5){
+  myx <- permutations(i, i)
+  # print(myx)
+  res <- apply(myx, 1, function(myx){
+    cur.x <- x[myx]
+    cur.y <- y[myx]
+    return(computeInversionsNumber(cur.x, cur.y))
+  })
+  print(table(res))
+  hist(res) 
+  # print(res)
+}
+
+
 x <- c(1,2,2,3,3,4)
 y <- c(8,5,6,6,7,5)
 

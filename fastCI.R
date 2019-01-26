@@ -1,9 +1,13 @@
 
 require(matrixStats)
+dyn.load("~/Code/fastCI/fastCI.so")
+library(Rcpp)
+sourceCpp("~/Code/fastCI/fastCI.cpp")
 
 
 merge_two_sides <- function(left, right, outx){
   # browser()
+  # Unpacking the elements of the lists for convenience. 
   left_observations <- left[[1]]
   left_predictions <- left[[2]]
   left_discordant <- left[[3]]
@@ -13,34 +17,41 @@ merge_two_sides <- function(left, right, outx){
   right_predictions <- right[[2]]
   right_discordant <- right[[3]]
   right_pairs <- right[[4]]
-  
+
+
+  #RLR = Right List Remaining  
   RLR <- 0
+  #LLL = Left List Left
   LLL <- length(left_observations)
   
+  # Length Right
   LR <- length(right_observations)
   
+  # Create output vectors of right length to iterate through
   out_observations <- numeric(LLL + LR)
   out_predictions <- numeric(LLL + LR)
-  out_discordant <- numeric(length(out_observations))
-  out_pairs <- numeric(length(out_observations))
+  out_discordant <- numeric(LLL + LR)
+  out_pairs <- numeric(LLL + LR)
   
+  #Left Index; Right Index, index (of output vector)
   Li <- 1
   Ri <- 1
   i <- 1
   while(i <= length(out_observations)){
     
     if(LLL == 0){
-      #Break out of loop if left list is empty
+      ## If left list is empty the only things we can do is fill in the
+      ## output with right list elements.
       out_observations[i] <- right_observations[Ri]
       out_predictions[i] <- right_predictions[Ri]
-      out_discordant[i] <- right_discordant[Ri] + LLL
+      out_discordant[i] <- right_discordant[Ri] + LLL #LLL = 0, but for consistency leaving here
       out_pairs[i] <- right_pairs[Ri]
       Ri <- Ri + 1
       i <- i + 1
       next
     }
     if(RLR == LR){
-      #Break out of loop if right list is empty
+      ## If all elements from the right list have been removed, we fill in from left list
       out_observations[i] <- left_observations[Li]
       out_predictions[i] <- left_predictions[Li]
       out_discordant[i] <- left_discordant[Li] + RLR
@@ -50,11 +61,9 @@ merge_two_sides <- function(left, right, outx){
       next
     }
     if(left_predictions[Li] == right_predictions[Ri] || (left_observations[Li] == right_observations[Ri] && outx)){
-      ## This should be split into two cases, one that counts tied predictions, and one that counts tied observations. 
-      current_observation <- left_observations[Li]
-      current_prediction <- left_predictions[Li]
-      ## TODO: This out_pair counting below is incorrect. Maybe we should just count up for each valid comparison made?
-      while(LLL && (left_observations[Li] == current_observation || left_predictions[Li] == current_prediction)){
+      # Is this still wrong?
+      ## This loop removes elements from the left list while they remain tied with the leftmost element of the right list 
+      while(LLL && (left_observations[Li] == right_observations[Ri] || left_predictions[Li] == right_predictions[Ri])){
         out_observations[i] <- left_observations[Li]
         out_predictions[i] <- left_predictions[Li]
         out_discordant[i] <- left_discordant[Li] + RLR 
@@ -136,7 +145,7 @@ merge_sort <- function(input, outx){
 }
 ## Currently, the following code gives prediction intervals for new CIs of the same sample size. 
 
-fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alternative = c("two.sided", "greater", "less"), interval = c("confidence", "prediction")){
+fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alternative = c("two.sided", "greater", "less"), interval = c("confidence", "prediction"), noise.ties = FALSE, noise.eps = sqrt(.Machine$double.eps), C = TRUE, CPP = TRUE){
 
   alternative = match.arg(alternative)
   interval = match.arg(interval)
@@ -155,9 +164,60 @@ fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alterna
   
   predictions <- predictions[myorder]
   observations <- observations[myorder]
+  
+  if(noise.ties){
+    
+    dup.pred <- duplicated(predictions)
+    dup.obs <- duplicated(observations)
+    
+    ## Being extra-precautious about possible duplicates from rnorm. (VERY UNLIKELY)
+    
+    while(any(dup.obs) || any(dup.pred)){
+      predictions[dup.pred] <- predictions[dup.pred] + rnorm(sum(dup.pred), 0, noise.eps)
+      observations[dup.obs] <- observations[dup.obs] + rnorm(sum(dup.obs), 0, noise.eps)
+      
+      dup.pred <- duplicated(predictions)
+      dup.obs <- duplicated(observations)
+      
+    }
+  }
+  if(C){
+    discordant <- numeric(length(predictions))
+    pairs <- rep(length(predictions)-1, length(predictions))
+    
+    # output_observations <- observations
+    # output_predictions <- predictions
+    # output_discordant <- discordant
+    # output_pairs <- pairs
+    
+    # cres <- .C("merge_sort_c", as.double(observations),
+    #                    as.double(predictions),
+    #                    as.double(discordant),
+    #                    as.double(pairs),
+    #                    as.double(output_observations),
+    #                    as.double(output_predictions),
+    #                    as.double(output_discordant),
+    #                    as.double(output_pairs), as.integer(length(observations)), as.integer(outx))
+    # output <- cres[5:8]
+    
+    output <- .Call("merge_sort_c", observations,
+          predictions,
+          discordant,
+          pairs,
+          length(observations), outx)
+    
+  } else {
+    if(CPP){
+      output <- merge_sort_c(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)), outx)
+    } else{
+      input <- list(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)))
+      
+      output <- merge_sort(input, outx)
+      
+    }
+    
+  }
 
-  input <- list(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)))
-  output <- merge_sort(input, outx)
   output_discordant <- output[[3]]
   output_pairs <- output[[4]]
   comppairs=10
