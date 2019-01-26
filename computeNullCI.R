@@ -190,6 +190,7 @@ mult.p <- function(p1, p2, outOrder){
 
 
 mult.plist <- function(plist, outOrder){
+  # Fix the float overflow problem here with SmartMultipying
   if (missing(outOrder)) {
     outOrder <- sum(unlist(lapply(plist, length))) - length(plist) + 1
   }
@@ -216,4 +217,38 @@ divide.p <- function(p1, p2){
   p3.fft <- p1.fft / p2.fft
   
   return(fft(1/length(p3.fft) * p3.fft, inverse = TRUE)[1:outlen])
+}
+
+
+# Rejection sampling for comparison with permutation nulls:
+cinull.sample.reject <- function(mypdf, range=c(0,1), n){
+  # mypdf is a probability distribution function sampled uniformly on some interval (i.e. a histogram)
+  mymean <- sum(mypdf * seq(range[1], range[2], 1/(length(mypdf)-1)))
+  mysd <- sqrt(sum(mypdf * ((seq(range[1], range[2], 1/(length(mypdf)-1)) - 0.5)^2)))
+  myratio <- max(mypdf/dnorm(x=seq(0,1,1/(length(mypdf)-1)), mean=mymean, sd=1.2*mysd))
+  
+  mysamples <- numeric(n)
+  ii = 1
+  while(ii <= n){
+    x <- rnorm(1, mean=mymean, sd=mysd*1.2)
+    u <- runif(1)    
+    
+    if (x > range[1] & x < range[2] & u <= mypdf[round(x * (length(mypdf)-1))+1] / (dnorm(x, mean=mymean, sd=1.2*mysd) * myratio)){
+      mysamples[ii] <- x
+      ii <- ii + 1
+    }
+  }
+  return(mysamples)
+}
+
+cinull.sample <- function(mycdf, n, range=c(0,1)){
+  # Use for small values of mycdf
+  if (length(mycdf) > 20000){
+    stop("Use cinull.sample.reject instead of cinull.sample")
+  }
+  
+  myprobs <- runif(n)
+  mysample <- unlist(lapply(myprobs, function(x) min(which(mycdf > x))))
+  mysample <- (mysample-1)/(length(mycdf) - 1)
+  return(mysample)
 }
