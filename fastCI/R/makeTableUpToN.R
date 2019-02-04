@@ -1,6 +1,6 @@
 makeTableUpToN <-
 function(N){
-  nullCIDistMem <- memoise(nullCIDistMem)
+  nullCIDistMem <- memoise(nullCIDist)
   res <- list()
   
   for(i in seq_len(N)){
