@@ -1,0 +1,6 @@
+# assessPValue <- function(res, nullTable){
+	
+	
+
+
+# }

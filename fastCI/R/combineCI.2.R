@@ -30,7 +30,7 @@ function(x, nullTable){
     CI.out <- conc.out/total.out
     
   } else {
-    if(is.missing(nullTable)){
+    if(missing(nullTable)){
       nullTable <- makeTableUpToN(max(x[2,]))
     }
     vec1 <- x[,1]
