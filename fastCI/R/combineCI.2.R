@@ -1,3 +1,5 @@
+## Combines CIs and p-values using approximation in case that it is necessary
+
 combineCI.2 <-
 function(x, nullTable){
   
@@ -8,7 +10,7 @@ function(x, nullTable){
     vec1 <- x[,1]
     total.out <- choose(vec1[2], 2)
     conc.out <- vec1[1] * total.out
-    pars.out <- computeExpectedApproximation(total.out)
+    pars.out <- computeExpectedApproximation(vec1[2])
     x <- x[,-1, drop=FALSE]
     while(NCOL(x)){
       vec1 <- x[,1]

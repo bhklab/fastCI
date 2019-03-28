@@ -45,11 +45,12 @@ server <- function(input, output) {
   # toPlot <- 
   
   output$distribution <- renderPlot({
-    
+    # browser()
     count <- computeDistN(N(), input$invalidPairs)
     
-    
-    plot(count)})
+    plot(count, ylim=c(0,max(count)*1.1))
+    text(as.character(count), x = names(count), y = count + max(count)/20)
+    })
   
   
   output$mainPage <- renderUI(fluidRow(
