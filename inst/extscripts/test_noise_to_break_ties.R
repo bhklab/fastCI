@@ -10,7 +10,7 @@ ci.noised <- numeric(nperm)
 
 for(i in 1:nperm){
   
-  x <- sample.int(10, replace=TRUE)
+  x <- sample.int(10, size=20, replace=TRUE)
   
   y <- x
   
@@ -93,7 +93,7 @@ for(i in 1:100){
   
 }
 
-hist(ci.noised)
+hist(ci.noised, xlim = c(min(unlist(list(ci.noised, ci.outx.false, ci.outx.true))), max(unlist(list(ci.noised, ci.outx.false, ci.outx.true)))))
 abline(v=ci.outx.false[1], col="blue", lwd=2)
 abline(v=ci.outx.true[1], col="red", lwd=2)
 
