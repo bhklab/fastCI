@@ -4,10 +4,8 @@
 # library(Rcpp)
 # sourceCpp("~/Code/fastCI/fastCI.cpp")
 
-# outx {boolean} set to TRUE to not count pairs of observations tied on either observations or predictions as a relevant pair. 
 
-merge_two_sides <- function(left, right, outx){
-  print("merge two sides")
+merge_two_sides <- function(left, right, outx, delta.pred, delta.obs, logic.operator){
   # browser()
   # Unpacking the elements of the lists for convenience. 
   left_observations <- left[[1]]
@@ -19,7 +17,6 @@ merge_two_sides <- function(left, right, outx){
   right_predictions <- right[[2]]
   right_discordant <- right[[3]]
   right_pairs <- right[[4]]
-
 
   #RLR = Right List Removed
   RLR <- 0
@@ -39,11 +36,13 @@ merge_two_sides <- function(left, right, outx){
   Li <- 1
   Ri <- 1
   i <- 1
+
   while(i <= length(out_observations)){
     
     if(LLL == 0){
       ## If left list is empty the only things we can do is fill in the
       ## output with right list elements.
+      # RCI: fixed.  base condition, don't need to augment in any way
       out_observations[i] <- right_observations[Ri]
       out_predictions[i] <- right_predictions[Ri]
       out_discordant[i] <- right_discordant[Ri] + LLL #LLL = 0, but for consistency leaving here
@@ -54,9 +53,11 @@ merge_two_sides <- function(left, right, outx){
     }
     if(RLR == LR){
       ## If all elements from the right list have been removed, we fill in from left list
+      #  IS: couldn't we just copy all remaining left list into out_*?  I guess it's not C-like
+      #  RCI: fixed
       out_observations[i] <- left_observations[Li]
       out_predictions[i] <- left_predictions[Li]
-      out_discordant[i] <- left_discordant[Li] + RLR
+      out_discordant[i] <- left_discordant[Li]
       out_pairs[i] <- left_pairs[Li]
       Li <- Li + 1
       i <- i + 1
@@ -65,10 +66,11 @@ merge_two_sides <- function(left, right, outx){
     if(left_predictions[Li] == right_predictions[Ri] || (left_observations[Li] == right_observations[Ri] && outx)){
       # Is this still wrong?
       ## This loop removes elements from the left list while they remain tied with the leftmost element of the right list 
+      # No RCI cost in the inner loop, but outside.  Anything with a cost of right_discordant + LLL must be augmented
       while(LLL && (left_observations[Li] == right_observations[Ri] || left_predictions[Li] == right_predictions[Ri])){
         out_observations[i] <- left_observations[Li]
         out_predictions[i] <- left_predictions[Li]
-        out_discordant[i] <- left_discordant[Li] + RLR 
+        out_discordant[i] <- left_discordant[Li]
         out_pairs[i] <- left_pairs[Li] - 1
         i <- i + 1
         LLL <- LLL - 1
@@ -76,15 +78,17 @@ merge_two_sides <- function(left, right, outx){
       }
       out_observations[i] <- right_observations[Ri]
       out_predictions[i] <- right_predictions[Ri]
+      ###  Add RCI cost here
       out_discordant[i] <- right_discordant[Ri] + LLL 
       out_pairs[i] <- right_pairs[Ri] - 1
       RLR <- RLR + 1
       Ri <- Ri + 1
       i <- i + 1
     } else if(left_observations[Li] < right_observations[Ri]) {
+      #  RCI: fixed
       out_observations[i] <- left_observations[Li]
       out_predictions[i] <- left_predictions[Li]
-      out_discordant[i] <- left_discordant[Li] + RLR
+      out_discordant[i] <- left_discordant[Li]
       out_pairs[i] <- left_pairs[Li]
       LLL <- LLL - 1
       Li <- Li + 1
@@ -92,6 +96,7 @@ merge_two_sides <- function(left, right, outx){
     } else if(left_observations[Li] > right_observations[Ri]) {
       out_observations[i] <- right_observations[Ri]
       out_predictions[i] <- right_predictions[Ri]
+      ###  Add RCI cost here
       out_discordant[i] <- right_discordant[Ri] + LLL
       out_pairs[i] <- right_pairs[Ri]
       RLR <- RLR + 1
@@ -100,8 +105,6 @@ merge_two_sides <- function(left, right, outx){
     } else {
       # only case left is if the two values are equal and outx is false
       # stop("Not implemented correctly?")
-      ln <- count_front_duplicates(left_observations, left_predictions, 
-      print("In last case of loop - outx = FALSE")
       out_observations[i] <- left_observations[Li]
       out_predictions[i] <- left_predictions[Li]
       out_discordant[i] <- left_discordant[Li] + RLR + 0.5
@@ -120,11 +123,35 @@ merge_two_sides <- function(left, right, outx){
   }
   
   return(list(out_observations, out_predictions, out_discordant, out_pairs))
-   
 }
 
 
-merge_sort <- function(input, outx){
+rci_binary_update <- function(element, numvec, discordant, threshold){
+  # inputs: element, a number; element is less than the smallest (first) element of numvec
+  #         numvec, a sorted vector of numbers
+  #         discordant, a vector of integers of the same length as numvec
+  
+  L <- length(numvec)
+  idx <- get_count(element+threshold, numvec, L)
+  discordant[seq_len(L - idx) + idx] <- discordant[seq_len(L - idx) + idx] + 1
+  list(discordant=discordant, cost=L-idx)
+}
+
+get_count <- function(value, numvec, veclength){
+  ## Find the largest index i such that numvec[i] < value, given that numvec is sorted
+  ## Binary search method is slow in R
+  # mid <- ceil(veclength/2)
+  # if (veclength == 0){
+  #   return(0)
+  # } else if (numvec[mid] >= value) {
+  #   return( get_count(value, numvec[1:(mid-1)], mid-1) )
+  # } else {
+  #   return( mid + get_count(value, numvec[(mid+1):veclength], veclength-mid) )
+  # }
+  return(sum(numvec < value))
+}
+
+rmerge_sort <- function(input, outx, delta.pred, delta.obs, logic.operator){
   if(length(input[[1]]) == 1){
     return(input)
   } else {
@@ -141,28 +168,31 @@ merge_sort <- function(input, outx){
                   input_predictions[seq(split_idx+1, length(input_predictions))], 
                   input_discordant[seq(split_idx+1, length(input_observations))],
                   input_pairs[seq(split_idx+1, length(input_observations))])
-    left <- merge_sort(left, outx)
-    right <- merge_sort(right, outx)
-    output <- merge_two_sides(left, right, outx)
+    left <- rmerge_sort(left, outx, delta.pred, delta.obs, logic.operator)
+    right <- rmerge_sort(right, outx, delta.pred, delta.obs, logic.operator)
+    output <- rmerge_two_sides(left, right, outx, delta.pred, delta.obs, logic.operator)
     return(output)
   }
 }
 ## Currently, the following code gives prediction intervals for new CIs of the same sample size. 
 
-fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alternative = c("two.sided", "greater", "less"), interval = c("confidence", "prediction"), noise.ties = FALSE, noise.eps = sqrt(.Machine$double.eps), C = TRUE, CPP = TRUE){
+fastRCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, 
+                    delta.pred = 0.2, delta.obs = 0.2, logic.operator = c("and", "or"), 
+                    alternative = c("two.sided", "greater", "less"), 
+                    interval = c("confidence", "prediction"), noise.ties = FALSE, 
+                    noise.eps = sqrt(.Machine$double.eps), C = FALSE, CPP = FALSE){
 
   alternative = match.arg(alternative)
   interval = match.arg(interval)
+  logic.operator <- match.arg(logic.operator)
   
   if(!length(observations) == length(predictions)){
     stop("Size of vectors must be the same")
   }
   
-  
   myCompleteCases <- complete.cases(observations, predictions)
   observations <- observations[myCompleteCases]
   predictions <- predictions[myCompleteCases]
-
   
   myorder <- order(predictions, method = "radix")
   
@@ -170,7 +200,6 @@ fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alterna
   observations <- observations[myorder]
   
   if(noise.ties){
-    
     dup.pred <- duplicated(predictions)
     dup.obs <- duplicated(observations)
     
@@ -182,20 +211,20 @@ fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alterna
       
       dup.pred <- duplicated(predictions)
       dup.obs <- duplicated(observations)
-      
     }
   }
+
   if(C){
-    discordant <- numeric(length(predictions))
-    pairs <- rep(length(predictions)-1, length(predictions))
-    output <- .Call("merge_sort_c", observations,
-          predictions,
-          discordant,
-          pairs,
-          length(observations), outx)
+    #discordant <- numeric(length(predictions))
+    #pairs <- rep(length(predictions)-1, length(predictions))
+    #output <- .Call("merge_sort_c", observations,
+    #      predictions,
+    #      discordant,
+    #      pairs,
+    #      length(observations), outx)
   } else {
       input <- list(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)))
-      output <- merge_sort(input, outx)
+      output <- rmerge_sort(input, outx, delta.pred, delta.obs, logic.operator)
     
   }
 
@@ -257,12 +286,16 @@ fastCI <- function(observations, predictions, outx = TRUE, alpha = 0.05, alterna
 }
 
 
-justFastCI <- function(observations, predictions, outx = TRUE, noise.ties = FALSE, noise.eps = sqrt(.Machine$double.eps), C = TRUE, CPP = TRUE){
-  
+justFastRCI <- function(observations, predictions, outx = TRUE, 
+                    delta.pred = 0.2, delta.obs = 0.2, logic.operator = c("and", "or"), 
+                    noise.ties = FALSE, noise.eps = sqrt(.Machine$double.eps), C = TRUE, CPP = TRUE){
+  # Incomplete
+
+  logic.operator <- match.arg(logic.operator)
+
   if(!length(observations) == length(predictions)){
     stop("Size of vectors must be the same")
   }
-  
   
   myCompleteCases <- complete.cases(observations, predictions)
   if(!sum(myCompleteCases)){
