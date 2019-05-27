@@ -26,11 +26,11 @@ naiveCI <- function(x, y, count_xties=0, count_yties=0, alternative=c("two.sided
   Dvec <- rowSums(cimat == -1)
 
   tievec <- numeric(length(Cvec))
-  if (count_xties == 1 & count_yties == 1){
+  if (count_xties == 1 & count_yties == 0){
     tievec <- rowSums(xdeltamat == 0)
-  } else if (count_yties == 1 & count_xties == 0){
+  } else if (count_xties == 0 & count_yties == 1){
     tievec <- rowSums(ydeltamat == 0)
-  } else if (count_yties == 1 & count_xties == 1){
+  } else if (count_xties == 1 & count_yties == 1){
     tievec <- rowSums(cimat == 0)
   }
   Cvec <- Cvec + 0.5*tievec

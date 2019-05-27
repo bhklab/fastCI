@@ -29,11 +29,11 @@ naiveRCI <- function(x, y, delta_x = 0.2, delta_y = 0.2, count_xties=0, count_yt
   Dvec <- rowSums(rcimat == -1)
 
   tievec <- numeric(length(Cvec))
-  if (count_xties == 1 & count_yties == 1){
+  if (count_xties == 1 & count_yties == 0){
     tievec <- rowSums(xdeltamat * (abs(xdeltamat) > delta_x) == 0)
-  } else if (count_yties == 1 & count_xties == 0){
+  } else if (count_xties == 0 & count_yties == 1){
     tievec <- rowSums(ydeltamat * (abs(ydeltamat) > delta_y) == 0)
-  } else if (count_yties == 1 & count_xties == 1){
+  } else if (count_xties == 1 & count_yties == 1){
     tievec <- rowSums(rcimat == 0)
   }
   Cvec <- Cvec + 0.5*tievec
