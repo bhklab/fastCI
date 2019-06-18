@@ -3,11 +3,12 @@
 
 # This function has not yet been tested.
 
-naiveRCI <- function(x, y, delta_x = 0.2, delta_y = 0.2, count_xties=0, count_yties=0, 
+naiveRCI <- function(x, y, delta_x = 0.2, delta_y = 0.2, count_xties=0, count_yties=0, logic.operator=c("and", "or"), 
                      alternative=c("two.sided", "greater", "less"),
                      alpha=0.05, interval=c("confidence", "prediction")){
   alternative <- match.arg(alternative)
   interval <- match.arg(interval)
+  logic.operator <- match.arg(logic.operator)
   
   myCompleteCases <- complete.cases(x,y)
   x <- x[myCompleteCases]
@@ -21,7 +22,11 @@ naiveRCI <- function(x, y, delta_x = 0.2, delta_y = 0.2, count_xties=0, count_yt
   ydeltamat <- ymat - t(ymat)
   
   # RCI: sign(xdeltamat) * (abs(xdeltamat) > threshold)
-  rcimat <- sign(xdeltamat) * (abs(xdeltamat) > delta_x) * sign(ydeltamat) * (abs(ydeltamat) > delta_y)
+  if (logic.operator == "and"){
+    rcimat <- sign(xdeltamat) * sign(ydeltamat) * ((abs(xdeltamat) > delta_x) & (abs(ydeltamat) > delta_y))
+  } else {
+    rcimat <- sign(xdeltamat) * sign(ydeltamat) * ((abs(xdeltamat) > delta_x) | (abs(ydeltamat) > delta_y))
+  }
   
   # Extracting the important vectors from the rcimat calculation
   N <- length(x)
@@ -30,11 +35,11 @@ naiveRCI <- function(x, y, delta_x = 0.2, delta_y = 0.2, count_xties=0, count_yt
 
   tievec <- numeric(length(Cvec))
   if (count_xties == 1 & count_yties == 0){
-    tievec <- rowSums(xdeltamat * (abs(xdeltamat) > delta_x) == 0)
+    tievec <- rowSums(xdeltamat * (abs(xdeltamat) >= delta_x) == 0) - (diag(xdeltamat) == 0)
   } else if (count_xties == 0 & count_yties == 1){
-    tievec <- rowSums(ydeltamat * (abs(ydeltamat) > delta_y) == 0)
+    tievec <- rowSums(ydeltamat * (abs(ydeltamat) >= delta_y) == 0) - (diag(ydeltamat) == 0)
   } else if (count_xties == 1 & count_yties == 1){
-    tievec <- rowSums(rcimat == 0)
+    tievec <- rowSums(rcimat == 0)  - (diag(rcimat) == 0)
   }
   Cvec <- Cvec + 0.5*tievec
   Dvec <- Dvec + 0.5*tievec
@@ -68,5 +73,6 @@ naiveRCI <- function(x, y, delta_x = 0.2, delta_y = 0.2, count_xties=0, count_yt
               sterr=sterr, 
               lower=max(rcindex - ci, 0), 
               upper=min(rcindex + ci, 1), 
-              relevant.pairs.no=(C+D)/2))
+              relevant.pairs.no=(C+D)/2, 
+              rcimat = rcimat))  # delete this line
 }

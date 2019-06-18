@@ -26,12 +26,13 @@ naiveCI <- function(x, y, count_xties=0, count_yties=0, alternative=c("two.sided
   Dvec <- rowSums(cimat == -1)
 
   tievec <- numeric(length(Cvec))
+  # Subtract 1 for the diagonal, for which delta trivially equals 0. 
   if (count_xties == 1 & count_yties == 0){
-    tievec <- rowSums(xdeltamat == 0)
+    tievec <- rowSums(xdeltamat == 0) - 1
   } else if (count_xties == 0 & count_yties == 1){
-    tievec <- rowSums(ydeltamat == 0)
+    tievec <- rowSums(ydeltamat == 0) - 1
   } else if (count_xties == 1 & count_yties == 1){
-    tievec <- rowSums(cimat == 0)
+    tievec <- rowSums(cimat == 0) - 1
   }
   Cvec <- Cvec + 0.5*tievec
   Dvec <- Dvec + 0.5*tievec
@@ -45,7 +46,8 @@ naiveCI <- function(x, y, count_xties=0, count_yties=0, alternative=c("two.sided
 
   cindex <- C/(C+D)
   varp <- 4*((D^2 * CC - 2*C*D*CD + C^2 * DD) / (C + D)^4) * N * (N-1) / (N-2)
-
+  #browser()
+  
   if (varp >= 0) {
     sterr <- sqrt(varp / (N-1))
     if (interval == "confidence"){
@@ -57,7 +59,8 @@ naiveCI <- function(x, y, count_xties=0, count_yties=0, alternative=c("two.sided
     }
   } else {
     return(list(cindex=cindex, p.value=1, sterr=NA, lower=0, upper=0, 
-           relevant.pairs.no=(C+D)/2))
+           relevant.pairs.no=(C+D)/2, 
+           cimat=cimat))
   } 
   
   return(list(cindex=cindex, 
@@ -65,5 +68,6 @@ naiveCI <- function(x, y, count_xties=0, count_yties=0, alternative=c("two.sided
               sterr=sterr, 
               lower=max(cindex - ci, 0), 
               upper=min(cindex + ci, 1), 
-              relevant.pairs.no=(C+D)/2))
+              relevant.pairs.no=(C+D)/2, 
+              cimat=cimat))
 }

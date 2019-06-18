@@ -94,8 +94,8 @@ merge_two_sides <- function(left, right, discardTies){
   # Handle ties in the predictions
   LPredMax <- max(left_predictions)
   R_ix <- which(right_predictions == LPredMax)
+  L_ix <- which(left_predictions == LPredMax)
   if (length(R_ix) > 0) {
-    L_ix <- which(left_predictions == LPredMax)
     if (discardPredTies){
       right_pairs[R_ix] <- right_pairs[R_ix] - length(L_ix)
       left_pairs[L_ix] <- left_pairs[L_ix] - length(R_ix)
@@ -127,7 +127,7 @@ merge_two_sides <- function(left, right, discardTies){
       ## If left list is empty the only things we can do is fill in the output with right list elements.
       out_observations[i] <- right_observations[Ri]
       out_predictions[i] <- right_predictions[Ri]
-      out_discordant[i] <- right_discordant[Ri] + LL - Li + 1   #LLL #LLL = 0, but for consistency leaving here
+      out_discordant[i] <- right_discordant[Ri] + (LL - Li + 1) - (length(L_ix) - LpredTieCount) * (right_predictions[Ri] == LPredMax)   #LLL = 0, but for consistency leaving here
       out_pairs[i] <- right_pairs[Ri]
       Ri <- Ri + 1
       i <- i + 1
@@ -137,7 +137,7 @@ merge_two_sides <- function(left, right, discardTies){
       ## If all elements from the right list have been removed, we fill in from left list
       out_observations[i] <- left_observations[Li]
       out_predictions[i] <- left_predictions[Li]
-      out_discordant[i] <- left_discordant[Li] + Ri - 1
+      out_discordant[i] <- left_discordant[Li] + (Ri - 1) - RpredTieCount * (left_predictions[Li] == LPredMax)
       out_pairs[i] <- left_pairs[Li]
       Li <- Li + 1
       i <- i + 1
@@ -172,14 +172,14 @@ merge_two_sides <- function(left, right, discardTies){
       out_pairs[i] <- right_pairs[Ri]
       Ri <- Ri + 1
       i <- i + 1
-    } elseif (left_observations[Li] == right_observations[Ri]) {
+    } else if (left_observations[Li] == right_observations[Ri]) {
       # Tie in observations; need to count how elements are tied in obs
       L_start <- Li
       R_start <- Ri
       L_end <- get_elt_count(left_observations, Li, left_observations[Li])
       R_end <- get_elt_count(right_observations, Ri, right_observations[Ri])
       L_RangePredMax <- sum(left_predictions[L_start:L_end] == LPredMax)
-      R_RangePredMax <- sum(right_predictions[R_start:R_end] == RPredMax)
+      R_RangePredMax <- sum(right_predictions[R_start:R_end] == LPredMax)
 
       # There is a minor bug here: elements tied in BOTH pred and obs defer to how they are handled for pred
       # This probably shouldn't happen, but there aren't any guarantees at present
@@ -211,8 +211,8 @@ merge_two_sides <- function(left, right, discardTies){
           }
           Ri <- Ri + 1
           i <- i + 1
-        }
-      else { #discardObsTies = F
+        } 
+      } else { #discardObsTies = F
         while (Li <= L_end) {
           out_observations[i] <- left_observations[Li]
           out_predictions[i] <- left_predictions[Li]
@@ -222,12 +222,12 @@ merge_two_sides <- function(left, right, discardTies){
             out_pairs[i] <- left_pairs[Li]
           } else {
             out_discordant[i] <- left_discordant[Li] + (Ri - 1) + (1/2) *(R_end - R_start + 1)
-            out_pairs[i] <- left_pairs[Ri]
+            out_pairs[i] <- left_pairs[Li]
           }
           Li <- Li + 1
           i <- i + 1
         }
-        while (Ri  <= R_end) {
+        while (Ri <= R_end) {
           out_observations[i] <- right_observations[Ri]
           out_predictions[i] <- right_predictions[Ri]
           if (right_predictions[Ri] == LPredMax) {
@@ -238,83 +238,25 @@ merge_two_sides <- function(left, right, discardTies){
             out_discordant[i] <- right_discordant[Ri] + (LL - Li + 1) + (1/2) * (L_end - L_start + 1)
             out_pairs[i] <- right_pairs[Ri]
           }
-
-          
+          Ri <- Ri + 1
+          i <- i + 1
+        }
       }
     }
-  elseif ((left_observations[Li] == right_observations[Ri]) || right_predictions[Ri] <= Lmax_pred) {  
-  #     # There is a tie somewhere; deal with it appropriately
-  #     # Ri is smallest obs but has a tie in obs 
-  #     if((left_predictions[Li] == right_predictions[Ri] && discardPredTies) || (left_observations[Li] == right_observations[Ri] && discardObsTies)){
-  #     ## This loop removes elements from the left list while they remain tied with the leftmost element of the right list 
-  #     while(LLL && (left_observations[Li] == right_observations[Ri] && discardPredTies) || (left_predictions[Li] == right_predictions[Ri] && discardObsTies))){
-  #       out_observations[i] <- left_observations[Li]
-  #       out_predictions[i] <- left_predictions[Li]
-  #       out_discordant[i] <- left_discordant[Li] + RLR 
-  #       out_pairs[i] <- left_pairs[Li] - 1
-  #       i <- i + 1
-  #       LLL <- LLL - 1
-  #       Li <- Li + 1
-  #     }
-  #     out_observations[i] <- right_observations[Ri]
-  #     out_predictions[i] <- right_predictions[Ri]
-  #     out_discordant[i] <- right_discordant[Ri] + LLL 
-  #     out_pairs[i] <- right_pairs[Ri] - 1
-  #     RLR <- RLR + 1
-  #     Ri <- Ri + 1
-  #     i <- i + 1
-  #     # the two values are equal and ties are not to be discarded
-  #     
-  #     # Count how many ties there are on the left side.  
-  #     # This creates a problem because we don't know which of the observations are tied; all right_obs >= left_obs, but 
-  #     # the lists themselves are unsorted.  One possible solution is to first count ties in the observed lists, but 
-  #     # we don't know which elements are tied in BOTH observed and predictions.  
-  #     
-  #     if (right_observations[Ri] > max(left_observations[Li:Li+LLL]) {
-  #        # Only ties in pred, which is a sorted list on each side.
-  #        # Count how many elements in left_pred tie with right_pred[Ri]
-  #        tiecount <- 0
-  #        while (left_predictions[Li + tiecount] == right_predictions[Ri]){
-  #          tiecount <- tiecount + 1
-  #        } 
-  #        
-  #     } else {
-  #        # Ties in either
-  #     }
-  #     ln <- count_front_duplicates(left_observations, left_predictions, Li, Ri, )
-  #     print("In last case of loop - outx = FALSE")
-  #     out_observations[i] <- left_observations[Li]
-  #     out_predictions[i] <- left_predictions[Li]
-  #     out_discordant[i] <- left_discordant[Li] + RLR + 0.5
-  #     out_pairs[i] <- left_pairs[Li]
-  #     i <- i + 1
-  #     out_observations[i] <- right_observations[Ri]
-  #     out_predictions[i] <- right_predictions[Ri]
-  #     out_discordant[i] <- right_discordant[Ri] + LLL - 0.5
-  #     out_pairs[i] <- right_pairs[Ri]
-  #     LLL <- LLL - 1
-  #     Li <- Li + 1
-  #     RLR <- RLR + 1
-  #     Ri <- Ri + 1
-  #     i <- i + 1
-  #   } else if(left_observations[Li] > right_observations[Ri]) {
-  #     out_observations[i] <- right_observations[Ri]
-  #     out_predictions[i] <- right_predictions[Ri]
-  #     out_discordant[i] <- right_discordant[Ri] + LLL
-  #     out_pairs[i] <- right_pairs[Ri]
-  #     RLR <- RLR + 1
-  #     Ri <- Ri + 1
-  #     i <- i + 1
-  #   }
-  # }
-  # 
-  # return(list(out_observations, out_predictions, out_discordant, out_pairs))
+  }
+
+  return(list(out_observations, out_predictions, out_discordant, out_pairs))
 }
 
 
-get_elt_count <- function(myvector, init){
+get_elt_count <- function(myvector, init, myvalue){
+  # Given a numeric vector, an index in that vector, and a value, get_elt_count
+  # returns the last index of a contiguous block of values starting at myvector[init] equal to myvalue.
   final <- init
-  while (myvector[final] == myvector[init] && final <= length(myvector)){
+  if (myvector[init] != myvalue){
+    stop("Value passed to get_elt_count was not equal to given index of vector")
+  }
+  while ((final+1) <= length(myvector) && myvector[final+1] == myvalue){
     final <- final + 1
   }
   final
@@ -373,8 +315,9 @@ merge_sort <- function(input, discardTies){
 
 fastCI <- function(observations, predictions, discardObsTies = TRUE, discardPredTies = TRUE, alpha = 0.05, 
                    alternative = c("two.sided", "greater", "less"), interval = c("confidence", "prediction"), 
-                   noise.ties = FALSE, noise.eps = sqrt(.Machine$double.eps), C = TRUE, CPP = TRUE){
+                   noise.ties = FALSE, noise.eps = sqrt(.Machine$double.eps), C = FALSE, CPP = FALSE){
 
+  #browser()
   discardTies = c(discardObsTies, discardPredTies)
   alternative = match.arg(alternative)
   interval = match.arg(interval)
@@ -454,7 +397,7 @@ fastCI <- function(observations, predictions, discardObsTies = TRUE, discardPred
   # cindex <- exp(C) / exp(logSumExp(c(C, D)))
   cindex <- C/(C+D)
   varp <- 4 * ((D ^ 2 * CC - 2 * C * D * CD + C ^ 2 * DD) / (C + D) ^ 4) * N * (N - 1) / (N - 2) 
-  
+  #browser()
   # varp <- 4 * ((exp(logSumExp(c(2*D + CC, 2*C + DD))) - 2 *exp(C + D + CD)) / exp(logSumExp(c(C, D)))^4) * N * (N - 1) / (N - 2)
   
   if (varp >= 0) {
