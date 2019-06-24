@@ -215,13 +215,13 @@ fastRCI <- function(observations, predictions, outx = TRUE, alpha = 0.05,
   }
 
   if(C){
-    #discordant <- numeric(length(predictions))
-    #pairs <- rep(length(predictions)-1, length(predictions))
-    #output <- .Call("merge_sort_c", observations,
-    #      predictions,
-    #      discordant,
-    #      pairs,
-    #      length(observations), outx)
+    discordant <- numeric(length(predictions))
+    pairs <- rep(length(predictions)-1, length(predictions))
+    output <- .Call("rmerge_sort_c", observations,
+         predictions,
+         discordant,
+         pairs,
+         length(observations), outx)
   } else {
       input <- list(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)))
       output <- rmerge_sort(input, outx, delta.pred, delta.obs, logic.operator)

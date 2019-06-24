@@ -159,7 +159,7 @@ void rmerge_sort(double *in_obs, double *in_preds, double *in_disc, double *in_p
   }
 }
 
-SEXP merge_sort_c(SEXP pin_obs,
+SEXP rmerge_sort_c(SEXP pin_obs,
                   SEXP pin_preds,
                   SEXP pin_disc,
                   SEXP pin_pairs,
@@ -214,7 +214,7 @@ SEXP merge_sort_c(SEXP pin_obs,
 
 
 static const R_CallMethodDef callMethods[]  = {
-  {"merge_sort_c", (DL_FUNC) &merge_sort_c, 6},
+  {"rmerge_sort_c", (DL_FUNC) &rmerge_sort_c, 6},
   {NULL, NULL, 0}
 };
 
