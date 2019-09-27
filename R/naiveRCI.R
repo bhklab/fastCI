@@ -3,12 +3,23 @@
 
 # This function has not yet been tested.
 
-naiveRCI <- function(x, y, delta_x = 0.2, delta_y = 0.2, count_xties=0, count_yties=0, logic.operator=c("and", "or"), 
-                     alternative=c("two.sided", "greater", "less"),
-                     alpha=0.05, interval=c("confidence", "prediction")){
+naiveRCI <- function(x, y, 
+                     delta_x = 0.2, 
+                     delta_y = 0.2, 
+                     valid.logic = c("or", "and"),
+                     tie.method.x = c("ignore", "half"), 
+                     tie.method.y = c("ignore", "half"),
+                     compute.p = c(TRUE, FALSE), 
+                     alternative = c("two.sided", "greater", "less"),
+                     p.method = c(), 
+                     alpha=0.05, 
+                     interval=c("confidence", "prediction")){
+  
   alternative <- match.arg(alternative)
   interval <- match.arg(interval)
-  logic.operator <- match.arg(logic.operator)
+  valid.logic <- match.arg(valid.logic)
+  tie.method.x = match.arg(tie.method.x)
+  tie.method.y = match.arg(tie.method.y)
   
   myCompleteCases <- complete.cases(x,y)
   x <- x[myCompleteCases]
@@ -22,7 +33,7 @@ naiveRCI <- function(x, y, delta_x = 0.2, delta_y = 0.2, count_xties=0, count_yt
   ydeltamat <- ymat - t(ymat)
   
   # RCI: sign(xdeltamat) * (abs(xdeltamat) > threshold)
-  if (logic.operator == "and"){
+  if (valid.logic == "and"){
     rcimat <- sign(xdeltamat) * sign(ydeltamat) * ((abs(xdeltamat) > delta_x) & (abs(ydeltamat) > delta_y))
   } else {
     rcimat <- sign(xdeltamat) * sign(ydeltamat) * ((abs(xdeltamat) > delta_x) | (abs(ydeltamat) > delta_y))
@@ -34,11 +45,11 @@ naiveRCI <- function(x, y, delta_x = 0.2, delta_y = 0.2, count_xties=0, count_yt
   Dvec <- rowSums(rcimat == -1)
 
   tievec <- numeric(length(Cvec))
-  if (count_xties == 1 & count_yties == 0){
+  if (tie.method.x == "half" & tie.method.y == "ignore"){
     tievec <- rowSums(xdeltamat * (abs(xdeltamat) >= delta_x) == 0) - (diag(xdeltamat) == 0)
-  } else if (count_xties == 0 & count_yties == 1){
+  } else if (tie.method.x == "ignore" & tie.method.y == "half"){
     tievec <- rowSums(ydeltamat * (abs(ydeltamat) >= delta_y) == 0) - (diag(ydeltamat) == 0)
-  } else if (count_xties == 1 & count_yties == 1){
+  } else if (tie.method.x == "half" & tie.method.y == "half"){
     tievec <- rowSums(rcimat == 0)  - (diag(rcimat) == 0)
   }
   Cvec <- Cvec + 0.5*tievec
@@ -64,8 +75,12 @@ naiveRCI <- function(x, y, delta_x = 0.2, delta_y = 0.2, count_xties=0, count_yt
       ci <- qnorm(p=alpha/2, lower.tail=FALSE) * sterr * sqrt(2)
     }
   } else {
-    return(list(rcindex=rcindex, p.value=1, sterr=NA, lower=0, upper=0, 
-           relevant.pairs.no=(C+D)/2))
+    return(list(rcindex=rcindex, 
+                p.value=1, 
+                sterr=NA, 
+                lower=NA, 
+                upper=NA, 
+                relevant.pairs.no=(C+D)/2))
   } 
   
   return(list(rcindex=rcindex, 
@@ -73,6 +88,5 @@ naiveRCI <- function(x, y, delta_x = 0.2, delta_y = 0.2, count_xties=0, count_yt
               sterr=sterr, 
               lower=max(rcindex - ci, 0), 
               upper=min(rcindex + ci, 1), 
-              relevant.pairs.no=(C+D)/2, 
-              rcimat = rcimat))  # delete this line
+              relevant.pairs.no=(C+D)/2))
 }

@@ -1,8 +1,19 @@
 # count_xties and count_yties are booleans that indicate whether ties should count as 0.5 correctly ordered 
 # and 0.5 incorrectly ordered pairs.  if count_*ties = 0, ties are ignored. 
 
-naiveCI <- function(x, y, count_xties=0, count_yties=0, alternative=c("two.sided", "greater", "less"),
-                     alpha=0.05, interval=c("confidence", "prediction")){
+naiveCI <- function(x, y, 
+                    tie.method.x=c("ignore", "half"), 
+                    tie.method.y=c("ignore", "half"), 
+                    compute.p = c(TRUE, FALSE), 
+                    alternative=c("two.sided", "greater", "less"),
+                    p.method=c(),
+                    alpha=0.05, 
+                    interval=c("confidence", "prediction"), 
+                    returnAll=c(FALSE, TRUE)){
+  
+  tie.method.x <- match.arg(tie.method.x)
+  tie.method.y <- match.arg(tie.method.y)
+  #replace with isbool compute.p <- match.arg(compute.p)
   alternative <- match.arg(alternative)
   interval <- match.arg(interval)
   
@@ -27,11 +38,11 @@ naiveCI <- function(x, y, count_xties=0, count_yties=0, alternative=c("two.sided
 
   tievec <- numeric(length(Cvec))
   # Subtract 1 for the diagonal, for which delta trivially equals 0. 
-  if (count_xties == 1 & count_yties == 0){
+  if (tie.method.x == "half" & tie.method.y == "ignore"){
     tievec <- rowSums(xdeltamat == 0) - 1
-  } else if (count_xties == 0 & count_yties == 1){
+  } else if (tie.method.x == "ignore" & tie.method.y == "half"){
     tievec <- rowSums(ydeltamat == 0) - 1
-  } else if (count_xties == 1 & count_yties == 1){
+  } else if (tie.method.x == "half" & tie.method.y == "half"){
     tievec <- rowSums(cimat == 0) - 1
   }
   Cvec <- Cvec + 0.5*tievec
@@ -58,9 +69,12 @@ naiveCI <- function(x, y, count_xties=0, count_yties=0, alternative=c("two.sided
       ci <- qnorm(p=alpha/2, lower.tail=FALSE) * sterr * sqrt(2)
     }
   } else {
-    return(list(cindex=cindex, p.value=1, sterr=NA, lower=0, upper=0, 
-           relevant.pairs.no=(C+D)/2, 
-           cimat=cimat))
+    return(list(cindex=cindex, 
+                p.value=1, 
+                sterr=NA, 
+                lower=NA, 
+                upper=NA, 
+                relevant.pairs.no=(C+D)/2))
   } 
   
   return(list(cindex=cindex, 
@@ -68,6 +82,5 @@ naiveCI <- function(x, y, count_xties=0, count_yties=0, alternative=c("two.sided
               sterr=sterr, 
               lower=max(cindex - ci, 0), 
               upper=min(cindex + ci, 1), 
-              relevant.pairs.no=(C+D)/2, 
-              cimat=cimat))
+              relevant.pairs.no=(C+D)/2))
 }
