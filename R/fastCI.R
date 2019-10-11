@@ -1,4 +1,3 @@
-
 # require(matrixStats)
 # dyn.load("~/Code/fastCI/fastCI.so")
 # library(Rcpp)
@@ -76,7 +75,6 @@ merge_two_sides_noties <- function(left, right){
 
 
 merge_two_sides <- function(left, right, discardTies){
-  # browser()
   # Unpacking the elements of the lists for convenience. 
   left_observations <- left[[1]]
   left_predictions <- left[[2]]
@@ -312,57 +310,65 @@ merge_sort <- function(input, discardTies){
 }
 
 ## Currently, the following code gives prediction intervals for new CIs of the same sample size. 
-
-fastCI <- function(observations, predictions, discardObsTies = TRUE, discardPredTies = TRUE, alpha = 0.05, 
-                   alternative = c("two.sided", "greater", "less"), interval = c("confidence", "prediction"), 
-                   noise.ties = FALSE, noise.eps = sqrt(.Machine$double.eps), C = FALSE, CPP = FALSE){
-
-  #browser()
-  discardTies = c(discardObsTies, discardPredTies)
+fastCI <- function(x, y, 
+                   tie.method.x = c("ignore", "half"), 
+                   tie.method.y = c("ignore", "half"), 
+                   compute.p = c(TRUE, FALSE), 
+                   alternative = c("two.sided", "greater", "less"), 
+                   p.method=c(), 
+                   alpha = 0.05, 
+                   interval = c("confidence", "prediction"), 
+                   noise.ties = FALSE, 
+                   noise.eps = sqrt(.Machine$double.eps), 
+                   C = FALSE, 
+                   CPP = FALSE){
+  
+  tie.method.x <- match.arg(tie.method.x)
+  tie.method.y <- match.arg(tie.method.y)
   alternative = match.arg(alternative)
   interval = match.arg(interval)
+  discardTies = c(ifelse(tie.method.x == "ignore", 1, 0), ifelse(tie.method.y == "ignore", 1, 0))
   
-  if(!length(observations) == length(predictions)){
+  if(!length(x) == length(y)){
     stop("Size of vectors must be the same")
   }
   
-  myCompleteCases <- complete.cases(observations, predictions)
-  observations <- observations[myCompleteCases]
-  predictions <- predictions[myCompleteCases]
+  myCompleteCases <- complete.cases(x, y)
+  x <- x[myCompleteCases]
+  y <- y[myCompleteCases]
   if(!sum(myCompleteCases)){
-    return(c("CI" = NA, "N" =0))
+    return(list("cindex" = NA, "relevant.pairs.no" = 0, "p.value" = 1))
   }
   
-  myorder <- order(predictions, method = "radix")
-  predictions <- predictions[myorder]
-  observations <- observations[myorder]
+  myorder <- order(y, method = "radix")
+  x <- x[myorder]
+  y <- y[myorder]
   
   if(noise.ties){
-    dup.pred <- duplicated(predictions)
-    dup.obs <- duplicated(observations)
+    dup.pred <- duplicated(x)
+    dup.obs <- duplicated(y)
     
     ## Being extra-precautious about possible duplicates from rnorm. (VERY UNLIKELY)
-    
     while(any(dup.obs) || any(dup.pred)){
-      predictions[dup.pred] <- predictions[dup.pred] + rnorm(sum(dup.pred), 0, noise.eps)
-      observations[dup.obs] <- observations[dup.obs] + rnorm(sum(dup.obs), 0, noise.eps)
+      x[dup.pred] <- y[dup.pred] + rnorm(sum(dup.pred), 0, noise.eps)
+      x[dup.obs] <- y[dup.obs] + rnorm(sum(dup.obs), 0, noise.eps)
       
-      dup.pred <- duplicated(predictions)
-      dup.obs <- duplicated(observations)
-      
+      dup.pred <- duplicated(x)
+      dup.obs <- duplicated(y)
     }
   }
   if(C){
-    discordant <- numeric(length(predictions))
-    pairs <- rep(length(predictions)-1, length(predictions))
-    output <- .Call("merge_sort_c", observations,
-          predictions,
+    browser()
+    discordant <- numeric(length(x))
+    pairs <- rep(length(y)-1, length(x))
+    output <- .Call("merge_sort_c", y,
+          x,
           discordant,
           pairs,
-          length(observations), discardTies)
+          length(y), discardTies[1], discardTies[2])
   } else {
-      input <- list(observations, predictions, numeric(length(predictions)), rep(length(predictions)-1, length(predictions)))
-      if (length(unique(observations)) == length(unique(predictions)) && length(unique(observations)) == length(observations)){
+      input <- list(x, y, numeric(length(y)), rep(length(y)-1, length(y)))
+      if (length(unique(x)) == length(unique(y)) && length(unique(x)) == length(x)){
         output <- merge_sort_noties(input)
       }
       else {
@@ -373,22 +379,22 @@ fastCI <- function(observations, predictions, discardObsTies = TRUE, discardPred
   output_discordant <- output[[3]]
   output_pairs <- output[[4]]
   comppairs=10
-  # N <- length(predictions)
+  # N <- length(y)
   # D <- exp(logSumExp(log(output_discordant)))
   # C <- exp(logSumExp(log((N-1)-output_discordant)))
   # CC <- exp(logSumExp(log(C) + log(C-1)))
   # DD <- exp(logSumExp(log(D) + log(D-1)))
   # CD <- exp(logSumExp(log(C) + log(D)))
 
-  N <- length(predictions)
+  N <- length(y)
   D <- sum(output_discordant)
   Cvec <- output_pairs-output_discordant
   C <-  sum(Cvec)
   CC <- sum(Cvec*(Cvec-1))
   DD <- sum(output_discordant*(output_discordant-1))
   CD <- sum(Cvec*output_discordant)
-  # browser()
-  # if (N < 3 || (C == 0 && D == 0)) {
+
+    # if (N < 3 || (C == 0 && D == 0)) {
   #   return(list("cindex"=NA, "p.value"=NA, "sterr"=NA, "lower"=NA, "upper"=NA, "relevant.pairs.no"=0))
   # }
   # if(C==0 || D==0 || C * (C - 1)==0 || D * (D - 1)==0 || C * D==0 || (C + D) < comppairs){
@@ -400,7 +406,7 @@ fastCI <- function(observations, predictions, discardObsTies = TRUE, discardPred
   #browser()
   # varp <- 4 * ((exp(logSumExp(c(2*D + CC, 2*C + DD))) - 2 *exp(C + D + CD)) / exp(logSumExp(c(C, D)))^4) * N * (N - 1) / (N - 2)
   
-  if (varp >= 0) {
+  if (!(is.na(varp) || varp < 0)){  # i.e. varp >= 0
     sterr <- sqrt(varp / (N-1))
     if(interval == "confidence"){
       ci <- qnorm(p = alpha / 2, lower.tail = FALSE) * sterr

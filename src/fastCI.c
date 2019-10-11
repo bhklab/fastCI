@@ -13,7 +13,7 @@
 void merge_two_sides(double *left_obs, double *left_preds, double *left_disc, double *left_pairs, int left_length,
                      double *right_obs, double *right_preds, double *right_disc, double *right_pairs, int right_length,
                      double *out_obs, double *out_preds, double *out_disc, double *out_pairs, int out_length,
-                     int outx){
+                     int discard_x_ties, int discard_y_ties){
 
   //RLR = Right List Removed  
   int RLR = 0;
@@ -28,6 +28,9 @@ void merge_two_sides(double *left_obs, double *left_preds, double *left_disc, do
   int Ri = 0;
   int i = 0;
 
+  // Handle any potential ties in the predictions across L and R, which as R_pred >= L_pred, 
+  // can only emerge from having elements in the right side equal to max(L_pred)
+  
 
   while(i < out_length){
     
@@ -112,13 +115,12 @@ void merge_two_sides(double *left_obs, double *left_preds, double *left_disc, do
 
 void merge_sort(double *in_obs, double *in_preds, double *in_disc, double *in_pairs, int in_length, 
                 double *out_obs, double *out_preds, double *out_disc, double *out_pairs, int out_length,
-                int outx){
+                int discard_x_ties, int discard_y_ties){
   if(in_length == 1){
     return;
   } else {
 
     int split_idx = floor(in_length/2);
-    
 
     double *left_obs = &in_obs[0];
     double *left_preds = &in_preds[0];
@@ -147,14 +149,14 @@ void merge_sort(double *in_obs, double *in_preds, double *in_disc, double *in_pa
 
     merge_sort(oleft_obs, oleft_preds, oleft_disc, oleft_pairs, left_length, 
                left_obs, left_preds, left_disc, left_pairs, left_length,
-               outx);
+               discard_x_ties, discard_y_ties);
     merge_sort(oright_obs, oright_preds, oright_disc, oright_pairs, right_length, 
                right_obs, right_preds, right_disc, right_pairs, right_length,
-               outx);
+               discard_x_ties, discard_y_ties);
     merge_two_sides(left_obs, left_preds, left_disc, left_pairs, left_length,
                     right_obs, right_preds, right_disc, right_pairs, right_length,
                     out_obs, out_preds, out_disc, out_pairs, out_length,
-                    outx);
+                    discard_x_ties, discard_y_ties);
     return;
   }
 }
@@ -164,11 +166,14 @@ SEXP merge_sort_c(SEXP pin_obs,
                   SEXP pin_disc,
                   SEXP pin_pairs,
                   SEXP pn,
-                  SEXP poutx){
+                  SEXP pdiscard_x_ties, 
+                  SEXP pdiscard_y_ties){
 
 
   int N = *INTEGER(pn);
-  int outx = *INTEGER(poutx);
+  // Problem here
+  int discard_x_ties = *INTEGER(pdiscard_x_ties);
+  int discard_y_ties = *INTEGER(pdiscard_y_ties);
 
 
   double *in_obs = REAL(PROTECT(allocVector(REALSXP, N)));
@@ -200,7 +205,7 @@ SEXP merge_sort_c(SEXP pin_obs,
 
   merge_sort(in_obs, in_preds, in_disc, in_pairs, N, 
              out_obs, out_preds, out_disc, out_pairs, N,
-             outx);
+             discard_x_ties, discard_y_ties);
 
   SET_VECTOR_ELT(out, 0, pout_obs);
   SET_VECTOR_ELT(out, 1, pout_preds);
