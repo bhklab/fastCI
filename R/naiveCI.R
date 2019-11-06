@@ -59,7 +59,7 @@ naiveCI <- function(x, y,
   varp <- 4*((D^2 * CC - 2*C*D*CD + C^2 * DD) / (C + D)^4) * N * (N-1) / (N-2)
   #browser()
   
-  if (varp >= 0) {
+  if (is.finite(varp) && varp >= 0) {
     sterr <- sqrt(varp / (N-1))
     if (interval == "confidence"){
       ci <- qnorm(p=alpha/2, lower.tail=FALSE) * sterr
