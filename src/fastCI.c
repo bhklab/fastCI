@@ -55,7 +55,9 @@ void merge_two_sides(double *left_obs, double *left_preds, double *left_disc, do
       i = i + 1;
       continue;
     }
-    if(left_preds[Li] == right_preds[Ri] || (left_obs[Li] == right_obs[Ri] && outx)){
+    // if(left_preds[Li] == right_preds[Ri] || (left_obs[Li] == right_obs[Ri] && outx)){
+    if(left_preds[Li] == right_preds[Ri] || (left_obs[Li] == right_obs[Ri])){
+
       // Is this still wrong?
       //// This loop removes elements from the left list while they remain tied with the leftmost element of the right list 
       while(LLL && (left_obs[Li] == right_obs[Ri] || left_preds[Li] == right_preds[Ri])){
