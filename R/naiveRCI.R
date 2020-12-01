@@ -62,31 +62,31 @@ naiveRCI <- function(x, y,
   DD <- sum(Dvec * (Dvec-1))
   CD <- sum(Cvec*Dvec)
 
-  rcindex <- C/(C+D)
+  cindex <- C/(C+D)
   varp <- 4*((D^2 * CC - 2*C*D*CD + C^2 * DD) / (C + D)^4) * N * (N-1) / (N-2)
 
   if (is.finite(varp) && varp >= 0) {
     sterr <- sqrt(varp / (N-1))
     if (interval == "confidence"){
       ci <- qnorm(p=alpha/2, lower.tail=FALSE) * sterr
-      p <- pnorm((rcindex - 0.5)/sterr)
+      p <- pnorm((cindex - 0.5)/sterr)
     } else{
-      p <- pnorm((rcindex - 0.5) / sterr)
+      p <- pnorm((cindex - 0.5) / sterr)
       ci <- qnorm(p=alpha/2, lower.tail=FALSE) * sterr * sqrt(2)
     }
   } else {
-    return(list(rcindex=rcindex, 
+    return(list(cindex=cindex, 
                 p.value=1, 
                 sterr=NA, 
                 lower=NA, 
                 upper=NA, 
                 relevant.pairs.no=(C+D)/2))
-  } 
+  }
   
-  return(list(rcindex=rcindex, 
+  return(list(cindex=cindex, 
               p.value=switch(alternative, less=p, greater=1-p, two.sided=2*min(p, 1-p)), 
               sterr=sterr, 
-              lower=max(rcindex - ci, 0), 
-              upper=min(rcindex + ci, 1), 
+              lower=max(cindex - ci, 0), 
+              upper=min(cindex + ci, 1), 
               relevant.pairs.no=(C+D)/2))
 }
